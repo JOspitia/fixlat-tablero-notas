@@ -114,7 +114,7 @@ Este proyecto se construyó con asistencia de IA para **validación y seguimient
 
 ### Output verificable
 
-Cuatro HUs escritas en `documents/`:
+Cuatro HUs escritas en `documents/` (fuente de verdad funcional):
 
 | HU | Archivo | Tamaño | Criterios de aceptación |
 |---|---|---|---|
@@ -126,6 +126,44 @@ Cuatro HUs escritas en `documents/`:
 
 Todos los ACs son binarios y verificables manualmente (no se agregaron tests automatizados por decisión del proyecto).
 
+### Verificación de código implementado contra las HUs generadas
+
+La IA también acompañó la **implementación del código** (backend + frontend) posterior a la documentación. Patrón usado:
+
+1. **Una rama feature por HU-backend + frontend** desde `main`:
+   ```
+   feature/hu-01-auth-backend          → 5 commits atómicos
+   feature/hu-02-tablero-backend      → 1 commit (deps HU-01)
+   feature/hu-03-dashboard-metrics-backend → 1 commit (incluye fix de soft-delete en Lambda)
+   feature/hu-04-admin-usuarios-backend → 2 commits (incluye fix de validación)
+   feature/hu-01-auth-frontend        → 4 commits
+   feature/hu-02-tablero-frontend     → 3 commits (incluye 2 fixes de bugs)
+   feature/hu-03-dashboard-frontend   → 1 commit
+   feature/hu-04-admin-frontend       → 1 commit
+   ```
+
+2. **Cada commit atómico** mapea a un paso discreto del proposal (sanctum install, middleware, controllers, etc.). Esto permite rollback selectivo si una parte rompe.
+
+3. **Smoke tests contra el backend** después de cada cambio, vía `docker exec fixlat_backend curl ...`. Casos cubiertos:
+   - HU-01: login OK con ambos demos, /me con token, logout, rate limit
+   - HU-02: CRUD notas, lock optimista con `updated_at` stale (→ 409), soft delete
+   - HU-03: Lambda fix verificado con conteo de notas reales (`{"total":4,"by_status":{"Pendiente":1,"En curso":2,"Hecho":1}}`)
+   - HU-04: 3 vectores de la invariante del último admin cubiertos (desactivarse, cambiar rol, ambos)
+
+4. **Bugs encontrados y corregidos durante la implementación**:
+   - `.env` del backend ignoraba env vars de `docker-compose.yml` (sqlite por default). Fix: cambiar `DB_CONNECTION=pgsql` directo en `.env` local (no se commitea, es local).
+   - PHP built-in server (`php artisan serve`) no procesa `HandleCors` para OPTIONS pre-flight en `/api/*`. Fix: shim manual en `public/index.php` + defaults hardcoded en `config/cors.php`. Ver `hu/cors-php-artisan-serve-gotcha` en Engram.
+   - `App\Services\MetricsUnavailableException` no se encontraba — faltaba `use` en `MetricsService.php`. Fix: agregar import.
+   - `ToggleActive` de HU-04 usaba `Request` en lugar de `FormRequest`, `validated()` no existía. Fix: usar `validate()` inline.
+   - Seed demo `user123` (7 chars) violaba `min:8` que HU-01 agregó. Fix: cambiar a `user1234`.
+   - `NoteEditor.handleSubmit` no preservaba `note.id` al construir el objeto a guardar → PUT a `/api/notes/undefined`. Fix: spread del `note` original.
+
+5. **Validación final contra `prueba-tecnica.md`** (auditoría): las 4 features requeridas por el doc técnico están implementadas y operativas. Cobertura:
+   - §1 Acceso y usuarios: ✅ login/logout, 2 roles, admin CRUD usuarios, estado activo/inactivo, ≥1 admin activo
+   - §2 Tablero de notas: ✅ tablero único, sin columnas, todos pueden operar todas, atributos completos, soft delete, persistencia
+   - §3 Dashboard: ✅ total + breakdown por estado, vía AWS Lambda
+   - §4 Ejecución local y AWS: ✅ Docker Compose, LocalStack, sin cuenta AWS, template.yaml de SAM
+
 ### Decisiones arquitectónicas derivadas del walkthrough
 
 - **Backend en capas**: `Request → Controller → Service → Model → Resource` por feature. Los Service concentran reglas de negocio (incluida la invariante del último admin activo).
@@ -134,6 +172,7 @@ Todos los ACs son binarios y verificables manualmente (no se agregaron tests aut
 - **Invariante del último admin activo**: validada en backend con un único mensaje literal `"No se puede desactivar al último administrador activo."` aplicado a los 4 vectores de violación (auto-desactivación, cambio de rol, combinación, otros admins que afecten el conteo).
 - **Bug fix de Lambda**: la query de `lambda/app.ts` no filtraba soft-deleted; se corrigió a `WHERE deleted_at IS NULL` (consistencia con HU-02 que sí usa `SoftDeletes`).
 - **Timeouts HTTP transversales**: frontend 10s, backend → Lambda 5s.
+- **CORS workaround para dev**: shim en `public/index.php` + defaults en `config/cors.php` para `php artisan serve`. En producción con nginx+php-fpm esto no es necesario.
 - **Paginación, búsqueda, filtros, ownership, Realtime**: explícitamente descartados en cada HU por no estar en el doc.
 
 ### Persistencia de decisiones

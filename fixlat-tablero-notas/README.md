@@ -162,6 +162,31 @@ sam delete --stack-name fixlat-dashboard-metrics
 * **Tiempo empleado:**
   * ~1h 30min en configuración inicial de estructura del proyecto (Docker, Laravel, React, TypeScript Lambda, LocalStack, seeders, migraciones y documentación base).
   * ~2h en levantamiento de requerimientos y documentación: análisis del documento técnico, walkthrough guiado de las 4 features con el usuario, y redacción de las 4 Historias de Usuario en `documents/HU-*.md` (HU-01 auth, HU-02 tablero-notas, HU-03 dashboard-metrics, HU-04 admin-usuarios) con 168 criterios de aceptación verificables.
-  * **Total estimado:** ~3h 30min.
-* **Pendientes:** Implementación de las funcionalidades principales de la aplicación (autenticación, tablero de notas, dashboard, administración de usuarios). Las 4 HUs están completas y sirven como guía de implementación.
-* **Limitaciones conocidas:** En el entorno local, CloudFront y EC2 no se emulan; el frontend se sirve mediante Nginx en contenedor y el backend mediante `php artisan serve` en contenedor. La función Lambda se emula con LocalStack Community y un runner HTTP de desarrollo.
+  * **~4h en implementación de código** (backend + frontend), distribuidas así:
+    | HU | Backend | Frontend |
+    |---|---|---|
+    | HU-01 auth | 30 min | 30 min |
+    | HU-02 tablero | 30 min | 30 min |
+    | HU-03 dashboard | 30 min | 30 min |
+    | HU-04 admin | 30 min | 30 min |
+  * **Total estimado:** ~7h 30min (dentro del límite de 8h de trabajo efectivo de `prueba-tecnica.md §6`).
+* **Funcionalidad implementada** (estado actual del código):
+
+  | HU | Backend | Frontend | Estado |
+  |---|---|---|---|
+  | HU-01 auth (Sanctum Bearer, login/logout/me, anti-enumeración, rate limit, EnsureUserIsActive) | ✅ | ✅ | funcional |
+  | HU-02 tablero de notas (CRUD con soft deletes, lock optimista, drag&drop con @dnd-kit) | ✅ | ✅ | funcional |
+  | HU-03 dashboard de métricas (proxy backend → Lambda, cards por estado, empty state, retry) | ✅ | ✅ | funcional |
+  | HU-04 admin de usuarios (CRUD, activar/desactivar, **invariante del último admin activo**) | ✅ | ✅ | funcional |
+
+  Acceso en local después de `docker compose up`:
+  - Frontend SPA: http://localhost:3000
+  - Login: `admin@test.com / admin123` o `user@test.com / user1234`
+  - Backend API: http://localhost:8000/api/*
+  - Lambda runner: http://localhost:3001/
+
+* **Limitaciones conocidas:**
+  * En el entorno local, CloudFront y EC2 no se emulan; el frontend se sirve mediante Nginx en contenedor y el backend mediante `php artisan serve` en contenedor. La función Lambda se emula con LocalStack Community y un runner HTTP de desarrollo.
+  * `php artisan serve` (built-in server) tiene un comportamiento peculiar con el middleware `HandleCors` para OPTIONS pre-flight en `/api/*`. Se mitigó con un shim en `public/index.php` y defaults hardcoded en `config/cors.php`. Ver `AGENTS.md §7` para más detalle.
+  * `php artisan serve` también presenta issues menores con bodies JSON (el backend acepta `application/x-www-form-urlencoded` confiablemente; el frontend usa ese content-type para `login` por compatibilidad).
+  * El video de demostración (≤8 min) y la URL de despliegue AWS opcional quedan como tareas manuales del usuario.
