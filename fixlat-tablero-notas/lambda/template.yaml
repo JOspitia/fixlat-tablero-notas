@@ -1,0 +1,47 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+Description: Infraestructura Serverless para Métricas del Dashboard de Fixlat
+
+Globals:
+  Function:
+    Timeout: 10
+    Runtime: nodejs20.x
+    Environment:
+      Variables:
+        DB_HOST: !Ref DBHost
+        DB_USER: !Ref DBUser
+        DB_PASSWORD: !Ref DBPassword
+        DB_NAME: !Ref DBName
+
+Parameters:
+  DBHost:
+    Type: String
+    Default: "db"
+  DBUser:
+    Type: String
+    Default: "fixlat_user"
+  DBPassword:
+    Type: String
+    Default: "fixlat_password"
+  DBName:
+    Type: String
+    Default: "fixlat_db"
+
+Resources:
+  DashboardMetricsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ./
+      Handler: app.handler
+      Events:
+        GetMetrics:
+          Type: Api
+          Properties:
+            Path: /metrics
+            Method: get
+
+Outputs:
+  DashboardApiUrl:
+    Description: "URL del API Gateway local o en AWS para consultar métricas"
+    Value:
+      Fn::Sub: "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/metrics/"

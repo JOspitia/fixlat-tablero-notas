@@ -1,0 +1,71 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: fixlat_db
+    environment:
+      POSTGRES_DB: fixlat_db
+      POSTGRES_USER: fixlat_user
+      POSTGRES_PASSWORD: fixlat_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U fixlat_user -d fixlat_db"]
+      interval: 3s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: fixlat_backend
+    ports:
+      - "8000:8000"
+    environment:
+      APP_ENV: local
+      APP_DEBUG: 'true'
+      DB_CONNECTION: pgsql
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_DATABASE: fixlat_db
+      DB_USERNAME: fixlat_user
+      DB_PASSWORD: fixlat_password
+    depends_on:
+      db:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: fixlat_frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+
+  lambda_local:
+    build:
+      context: ./lambda
+      dockerfile: Dockerfile
+    container_name: fixlat_lambda
+    ports:
+      - "3001:3001"
+    environment:
+      DB_HOST: db
+      DB_PORT: "5432"
+      DB_USER: fixlat_user
+      DB_PASSWORD: fixlat_password
+      DB_NAME: fixlat_db
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  postgres_data:
+
+  
