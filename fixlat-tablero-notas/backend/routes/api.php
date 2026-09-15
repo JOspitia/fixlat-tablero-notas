@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\MetricsController;
 use App\Http\Controllers\NoteController;
 use Illuminate\Support\Facades\Route;
 
@@ -32,3 +33,6 @@ Route::middleware(['auth:sanctum', 'auth.active'])->prefix('notes')->group(funct
     Route::patch('/{id}/position', [NoteController::class, 'updatePosition'])->whereNumber('id')->name('notes.updatePosition');
     Route::delete('/{id}', [NoteController::class, 'destroy'])->whereNumber('id')->name('notes.destroy');
 });
+
+// Dashboard metrics (HU-03) — protected by Sanctum + active user
+Route::middleware(['auth:sanctum', 'auth.active'])->get('/metrics', [MetricsController::class, 'show'])->name('metrics.show');

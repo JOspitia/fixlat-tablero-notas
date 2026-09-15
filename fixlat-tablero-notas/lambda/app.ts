@@ -31,7 +31,8 @@ export const handler: APIGatewayProxyHandler = async (): Promise<APIGatewayProxy
                 COUNT(CASE WHEN status = 'Pendiente' THEN 1 END)::int  AS pendiente,
                 COUNT(CASE WHEN status = 'En curso'  THEN 1 END)::int  AS en_curso,
                 COUNT(CASE WHEN status = 'Hecho'     THEN 1 END)::int  AS hecho
-            FROM notes;
+            FROM notes
+            WHERE deleted_at IS NULL;
         `;
 
         const result = await client.query<DashboardMetrics>(query);
