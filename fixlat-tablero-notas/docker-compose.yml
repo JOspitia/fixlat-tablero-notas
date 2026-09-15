@@ -33,6 +33,7 @@ services:
       DB_USERNAME: fixlat_user
       FRONTEND_ORIGIN: "http://localhost:3000"
       SANCTUM_STATEFUL_DOMAINS: "localhost:3000"
+      LAMBDA_METRICS_URL: "http://lambda_local:3001"
       DB_PASSWORD: fixlat_password
     depends_on:
       db:
