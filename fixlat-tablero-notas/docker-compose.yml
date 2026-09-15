@@ -31,6 +31,8 @@ services:
       DB_PORT: 5432
       DB_DATABASE: fixlat_db
       DB_USERNAME: fixlat_user
+      FRONTEND_ORIGIN: "http://localhost:3000"
+      SANCTUM_STATEFUL_DOMAINS: "localhost:3000"
       DB_PASSWORD: fixlat_password
     depends_on:
       db:
