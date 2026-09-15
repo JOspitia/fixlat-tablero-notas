@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useToast } from '../contexts/ToastContext';
 import { createUser, updateUser } from '../services/adminUsers';
 
@@ -80,9 +81,9 @@ export default function UserFormModal({ user, onClose, onSaved }) {
         }
     }
 
-    return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/50 animate-fade-in">
-            <div className="bg-white rounded-md shadow-xl border border-gray-200 w-full max-w-md p-6 flex flex-col gap-4">
+    return createPortal(
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 animate-fade-in">
+            <div className="bg-white rounded-md shadow-2xl border border-gray-200 w-full max-w-md p-6 flex flex-col gap-4">
                 {/* Header */}
                 <div className="flex items-center justify-between pb-3 border-b border-gray-200">
                     <h2 className="text-base font-bold text-gray-900">
@@ -192,7 +193,8 @@ export default function UserFormModal({ user, onClose, onSaved }) {
                     </div>
                 </form>
             </div>
-        </div>
+        </div>,
+        document.body
     );
 }
 
