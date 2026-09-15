@@ -159,6 +159,9 @@ sam delete --stack-name fixlat-dashboard-metrics
 
 ## Tiempo Empleado y Limitaciones Conocidas
 
-* **Tiempo empleado:** ~1h 30min en configuración inicial de estructura del proyecto (Docker, Laravel, React, TypeScript Lambda, LocalStack, seeders, migraciones y documentación base).
-* **Pendientes:** Desarrollo de las funcionalidades principales de la aplicación (autenticación, tablero de notas, dashboard, administración de usuarios).
+* **Tiempo empleado:**
+  * ~1h 30min en configuración inicial de estructura del proyecto (Docker, Laravel, React, TypeScript Lambda, LocalStack, seeders, migraciones y documentación base).
+  * ~2h en levantamiento de requerimientos y documentación: análisis del documento técnico, walkthrough guiado de las 4 features con el usuario, y redacción de las 4 Historias de Usuario en `documents/HU-*.md` (HU-01 auth, HU-02 tablero-notas, HU-03 dashboard-metrics, HU-04 admin-usuarios) con 168 criterios de aceptación verificables.
+  * **Total estimado:** ~3h 30min.
+* **Pendientes:** Implementación de las funcionalidades principales de la aplicación (autenticación, tablero de notas, dashboard, administración de usuarios). Las 4 HUs están completas y sirven como guía de implementación.
 * **Limitaciones conocidas:** En el entorno local, CloudFront y EC2 no se emulan; el frontend se sirve mediante Nginx en contenedor y el backend mediante `php artisan serve` en contenedor. La función Lambda se emula con LocalStack Community y un runner HTTP de desarrollo.
