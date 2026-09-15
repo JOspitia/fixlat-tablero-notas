@@ -1,4 +1,4 @@
-import { BrowserRouter, Route, Routes } from 'react-router-dom';
+import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import Layout from './components/Layout';
 import ProtectedRoute from './components/ProtectedRoute';
 import ToastViewport from './components/ToastViewport';
@@ -27,6 +27,7 @@ export default function App() {
                         >
                             <Route path="/tablero" element={<TableroPage />} />
                             <Route path="/dashboard" element={<DashboardPage />} />
+                            <Route path="/admin" element={<Navigate to="/admin/usuarios" replace />} />
                             <Route
                                 path="/admin/usuarios"
                                 element={

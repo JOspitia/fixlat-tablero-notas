@@ -28,7 +28,7 @@ export default function Sidebar() {
     const items = [...NAV_ITEMS];
     if (isAdmin) {
         items.push({
-            to: '/admin',
+            to: '/admin/usuarios',
             label: 'Usuarios',
             icon: (
                 <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
