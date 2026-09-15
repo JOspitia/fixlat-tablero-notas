@@ -13,17 +13,24 @@ const NEW_NOTE_DEFAULTS = {
     position_y: 100,
 };
 
+const STATUS_FILTERS = [
+    { key: 'ALL', label: 'Todas' },
+    { key: 'Pendiente', label: 'Pendiente' },
+    { key: 'En curso', label: 'En curso' },
+    { key: 'Hecho', label: 'Hecho' },
+];
+
 export default function TableroPage() {
     const { error: toastError, success } = useToast();
     const [notes, setNotes] = useState([]);
     const [loading, setLoading] = useState(true);
     const [editingId, setEditingId] = useState(null); // null | 'new' | note.id
     const [editorError, setEditorError] = useState(null);
+    const [searchQuery, setSearchQuery] = useState('');
+    const [selectedStatusFilter, setSelectedStatusFilter] = useState('ALL');
     const canvasRef = useRef(null);
 
-    // We need the current bounds of the canvas (in DOM px) so we can clamp note
-    // drag positions. Initialized after mount.
-    const canvasBoundsRef = useRef({ width: 0, height: 0 });
+    const newNotePositionRef = useRef({ x: 100, y: 100 });
 
     const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }));
 
@@ -53,27 +60,30 @@ export default function TableroPage() {
         return null;
     }, [editingId, notes]);
 
+    // Filter notes based on search & status filter
+    const filteredNotes = useMemo(() => {
+        return notes.filter((n) => {
+            const matchesSearch =
+                !searchQuery.trim() ||
+                n.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                n.text.toLowerCase().includes(searchQuery.toLowerCase());
+            const matchesStatus = selectedStatusFilter === 'ALL' || n.status === selectedStatusFilter;
+            return matchesSearch && matchesStatus;
+        });
+    }, [notes, searchQuery, selectedStatusFilter]);
+
     // ---- Mutations ----
     const handleCreate = useCallback(() => {
-        const newX = 60 + Math.random() * 200;
-        const newY = 60 + Math.random() * 200;
-        // We open the editor in "new" mode with a fresh position; if the user
-        // confirms Save, we'll POST and the backend will persist those coordinates.
+        const newX = 80 + Math.random() * 180;
+        const newY = 80 + Math.random() * 180;
         setEditingId('new');
-        // The editor's position is its own left/top prop, independent of notes state.
-        // We pass position via a transient slot below.
-        setNotes((prev) => prev); // no-op to keep flow obvious
-        // Stash new-position via a ref on editingNote computed below
-        newNotePositionRef.current = { x: newX, y: newY };
+        newNotePositionRef.current = { x: Math.round(newX), y: Math.round(newY) };
     }, []);
-
-    const newNotePositionRef = useRef({ x: 100, y: 100 });
 
     async function handleSave(note) {
         setEditorError(null);
         try {
             if (note.id === null) {
-                // Create
                 const created = await notesApi.createNote({
                     title: note.title,
                     text: note.text,
@@ -84,7 +94,6 @@ export default function TableroPage() {
                 setNotes((prev) => [...prev, created]);
                 success('Nota creada');
             } else {
-                // Update
                 const result = await notesApi.updateNote(note.id, {
                     title: note.title,
                     text: note.text,
@@ -95,7 +104,6 @@ export default function TableroPage() {
                     setNotes((prev) => prev.map((n) => (n.id === note.id ? result.note : n)));
                     success('Nota actualizada');
                 } else {
-                    // 409 Conflict
                     setEditorError({
                         message: 'La nota fue modificada por otro usuario. Recarga e intenta de nuevo.',
                         current: result.current,
@@ -126,7 +134,6 @@ export default function TableroPage() {
             success('Nota eliminada');
         } catch (err) {
             if (err.response?.status === 404) {
-                // Already gone server-side
                 setNotes((prev) => prev.filter((n) => n.id !== note.id));
                 success('Nota eliminada');
             } else {
@@ -137,7 +144,6 @@ export default function TableroPage() {
 
     function handleResolveConflict() {
         if (editingNote?.id && editorError?.current) {
-            // Replace local note with server current.
             setNotes((prev) => prev.map((n) => (n.id === editingNote.id ? editorError.current : n)));
             setEditorError(null);
         }
@@ -151,21 +157,19 @@ export default function TableroPage() {
     function handleDragEnd(event) {
         const { active, delta } = event;
         const id = parseInt(String(active.id).replace('note-', ''), 10);
-        if (!delta.x && !delta.y) return; // No movement, no-op
+        if (!delta.x && !delta.y) return;
         const note = notes.find((n) => n.id === id);
         if (!note) return;
 
-        const newX = Math.max(0, note.position_x + delta.x);
-        const newY = Math.max(0, note.position_y + delta.y);
+        const newX = Math.max(10, note.position_x + delta.x);
+        const newY = Math.max(10, note.position_y + delta.y);
 
-        // Optimistic update
         const prevNotes = notes;
         setNotes((curr) => curr.map((n) => (n.id === id ? { ...n, position_x: newX, position_y: newY } : n)));
 
         notesApi
             .updateNotePosition(id, newX, newY)
             .catch(() => {
-                // Rollback on failure
                 setNotes(prevNotes);
                 toastError('No se pudo guardar la nueva posición.');
             });
@@ -173,39 +177,62 @@ export default function TableroPage() {
 
     if (loading) {
         return (
-            <div className="flex items-center justify-center h-full">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600" />
+            <div className="flex flex-col items-center justify-center h-full bg-gray-50">
+                <div className="w-10 h-10 border-2 border-blue-600 border-t-transparent rounded-full animate-spin mb-2" />
+                <p className="text-xs text-gray-500 font-medium">Cargando lienzo...</p>
             </div>
         );
     }
 
     return (
-        <div className="relative h-full">
+        <div className="relative w-full h-full min-h-screen overflow-hidden bg-gray-50">
+            {/* Top Toolbar: Clean UI, solid white, border-gray-200 */}
+            <div className="absolute top-4 left-6 right-6 z-30 flex flex-wrap items-center justify-between gap-3 pointer-events-none">
+                {/* Filter Controls */}
+                <div className="pointer-events-auto flex items-center gap-2 bg-white px-3 py-2 rounded-md border border-gray-200 shadow-sm">
+
+                    {/* Filter Pills */}
+                    <div className="flex items-center gap-1">
+                        {STATUS_FILTERS.map((f) => {
+                            const isSelected = selectedStatusFilter === f.key;
+                            return (
+                                <button
+                                    key={f.key}
+                                    onClick={() => setSelectedStatusFilter(f.key)}
+                                    className={`px-2.5 py-1 rounded text-xs font-semibold transition-colors ${isSelected
+                                        ? 'bg-gray-800 text-white'
+                                        : 'text-gray-600 hover:bg-gray-100'
+                                        }`}
+                                >
+                                    {f.label}
+                                </button>
+                            );
+                        })}
+                    </div>
+                </div>
+            </div>
+
+            {/* Main Interactive Canvas */}
             <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
-                {/* The canvas covers the full main area (100% × 100%).
-                    Notes are absolutely positioned inside; if they go off-screen,
-                    the main container's overflow-auto lets the user scroll. */}
                 <div
                     ref={canvasRef}
-                    style={{
-                        position: 'relative',
-                        width: '100%',
-                        height: '100%',
-                        minHeight: '100vh',
-                        backgroundColor: '#F5F5F7',
-                        backgroundImage:
-                            'radial-gradient(circle, #c8c8d0 1px, transparent 1px)',
-                        backgroundSize: '24px 24px',
-                        backgroundPosition: '0 0',
-                    }}
+                    className="canvas-dot-grid relative w-full h-full min-h-screen pt-20 pb-24 overflow-auto select-none"
+                    style={{ minWidth: '100%', minHeight: '100vh' }}
                 >
-                    {notes.length === 0 && !editingNote && (
-                        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                            <p className="text-gray-500 text-lg">No hay notas todavía. Click "+" para crear la primera.</p>
+                    {/* Empty State */}
+                    {filteredNotes.length === 0 && !editingNote && (
+                        <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none p-6 text-center">
+                            <p className="text-gray-600 font-bold text-base mb-1">
+                                {notes.length === 0 ? 'No hay notas todavía' : 'No hay notas que coincidan'}
+                            </p>
+                            <p className="text-xs text-gray-500 max-w-xs">
+                                Haz clic en el botón azul inferior para crear tu primera nota.
+                            </p>
                         </div>
                     )}
 
-                    {notes.map((note) => (
+                    {/* Note Cards */}
+                    {filteredNotes.map((note) => (
                         editingNote?.id === note.id ? null : (
                             <NoteCard
                                 key={note.id}
@@ -216,10 +243,15 @@ export default function TableroPage() {
                         )
                     ))}
 
+                    {/* Note Editor Modal */}
                     {editingNote && (
                         <NoteEditor
                             note={editingNote}
-                            position={editingNote.id === null ? newNotePositionRef.current : { x: editingNote.position_x, y: editingNote.position_y }}
+                            position={
+                                editingNote.id === null
+                                    ? newNotePositionRef.current
+                                    : { x: editingNote.position_x, y: editingNote.position_y }
+                            }
                             onSave={handleSave}
                             onCancel={handleCancel}
                             onDelete={editingNote.id === null ? null : () => handleDelete(editingNote)}
@@ -230,12 +262,13 @@ export default function TableroPage() {
                 </div>
             </DndContext>
 
-            {/* Floating "+" button to create a new note */}
+            {/* Rule 4: Floating Action Button (FAB) - Solid Corporate Blue bg-blue-600 hover:bg-blue-700 shadow-lg */}
             <button
                 type="button"
                 onClick={handleCreate}
-                className="fixed bottom-8 right-8 z-40 w-14 h-14 rounded-full bg-blue-600 text-white text-3xl font-light shadow-lg hover:bg-blue-700 hover:scale-105 transition-transform flex items-center justify-center"
+                className="fixed bottom-8 right-8 z-40 w-14 h-14 rounded-full bg-blue-600 text-white text-3xl font-light shadow-lg hover:bg-blue-700 active:scale-95 transition-all flex items-center justify-center"
                 aria-label="Nueva nota"
+                title="Crear nueva nota"
             >
                 +
             </button>

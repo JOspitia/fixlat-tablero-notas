@@ -12,14 +12,14 @@ export default function LoginPage() {
     const [password, setPassword] = useState('');
     const [submitting, setSubmitting] = useState(false);
 
-    // Clear inactivation toast on unmount so it doesn't persist.
+    // Clear inactivation notice on unmount so it doesn't persist.
     useEffect(() => {
         return () => {
             if (fromInactivation) clearInactivityMessage();
         };
     }, [fromInactivation, clearInactivityMessage]);
 
-    // If already authenticated (e.g. coming back to /login), redirect away.
+    // If already authenticated, redirect away.
     useEffect(() => {
         if (!loading && user) {
             navigate(fromLocation?.pathname || '/tablero', { replace: true });
@@ -45,69 +45,82 @@ export default function LoginPage() {
     const inactivationNotice = fromInactivation || inactivityMessage;
 
     return (
-        <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
-            <form
-                onSubmit={handleSubmit}
-                className="bg-white rounded-lg shadow-md w-full max-w-md p-8 flex flex-col gap-4"
-            >
-                <h1 className="text-2xl font-bold text-center text-gray-800">Iniciar sesión</h1>
+        <div className="min-h-screen relative flex items-center justify-center bg-gray-50 px-4">
+            <div className="canvas-dot-grid absolute inset-0 pointer-events-none" />
 
-                {inactivationNotice && (
-                    <div role="alert" className="px-4 py-3 rounded bg-red-50 border border-red-200 text-red-800 text-sm">
-                        {inactivationNotice}
-                    </div>
-                )}
-
-                <div className="flex flex-col gap-1">
-                    <label htmlFor="email" className="text-sm font-medium text-gray-700">
-                        Correo electrónico
-                    </label>
-                    <input
-                        id="email"
-                        name="email"
-                        type="email"
-                        autoComplete="email"
-                        required
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                        disabled={submitting}
-                        className="border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
-                    />
+            <div className="w-full max-w-md relative z-10 animate-fade-in">
+                {/* Title */}
+                <div className="text-center mb-6">
+                    <h1 className="text-2xl font-bold text-gray-900">Tablero de Notas</h1>
+                    <p className="text-xs text-gray-500 mt-1">Inicia sesión para acceder a tus notas</p>
                 </div>
 
-                <div className="flex flex-col gap-1">
-                    <label htmlFor="password" className="text-sm font-medium text-gray-700">
-                        Contraseña
-                    </label>
-                    <input
-                        id="password"
-                        name="password"
-                        type="password"
-                        autoComplete="current-password"
-                        required
-                        minLength={8}
-                        maxLength={64}
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        disabled={submitting}
-                        className="border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
-                    />
-                </div>
-
-                {error && (
-                    <div role="alert" className="text-sm text-red-700 bg-red-50 px-3 py-2 rounded border border-red-200">
-                        {error}
-                    </div>
-                )}
-
-                <button
-                    type="submit"
-                    disabled={submitting}
-                    className="bg-blue-600 text-white font-semibold rounded px-4 py-2 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition"
+                {/* Login Card */}
+                <form
+                    onSubmit={handleSubmit}
+                    className="bg-white rounded-md shadow-md border border-gray-200 p-8 flex flex-col gap-4"
                 >
-                    {submitting ? 'Ingresando…' : 'Iniciar sesión'}
-                </button>
-            </form>
+                    <h2 className="text-lg font-bold text-gray-800">Iniciar sesión</h2>
+
+                    {inactivationNotice && (
+                        <div role="alert" className="p-3 rounded bg-red-50 border border-red-200 text-red-800 text-xs">
+                            {inactivationNotice}
+                        </div>
+                    )}
+
+                    <div className="flex flex-col gap-1">
+                        <label htmlFor="email" className="text-xs font-semibold text-gray-700">
+                            Correo electrónico
+                        </label>
+                        <input
+                            id="email"
+                            name="email"
+                            type="email"
+                            autoComplete="email"
+                            required
+                            value={email}
+                            onChange={(e) => setEmail(e.target.value)}
+                            disabled={submitting}
+                            placeholder="usuario@ejemplo.com"
+                            className="w-full px-3 py-2 text-sm text-gray-900 bg-white border border-gray-300 rounded-md outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 disabled:bg-gray-100 placeholder-gray-400 font-medium"
+                        />
+                    </div>
+
+                    <div className="flex flex-col gap-1">
+                        <label htmlFor="password" className="text-xs font-semibold text-gray-700">
+                            Contraseña
+                        </label>
+                        <input
+                            id="password"
+                            name="password"
+                            type="password"
+                            autoComplete="current-password"
+                            required
+                            minLength={8}
+                            maxLength={64}
+                            value={password}
+                            onChange={(e) => setPassword(e.target.value)}
+                            disabled={submitting}
+                            placeholder="••••••••"
+                            className="w-full px-3 py-2 text-sm text-gray-900 bg-white border border-gray-300 rounded-md outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 disabled:bg-gray-100 placeholder-gray-400 font-medium"
+                        />
+                    </div>
+
+                    {error && (
+                        <div role="alert" className="p-3 rounded bg-red-50 border border-red-200 text-red-700 text-xs font-medium">
+                            {error}
+                        </div>
+                    )}
+
+                    <button
+                        type="submit"
+                        disabled={submitting}
+                        className="mt-2 w-full py-2.5 px-4 bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm rounded-md shadow-sm transition-colors disabled:opacity-50"
+                    >
+                        {submitting ? 'Ingresando...' : 'Iniciar sesión'}
+                    </button>
+                </form>
+            </div>
         </div>
     );
 }
