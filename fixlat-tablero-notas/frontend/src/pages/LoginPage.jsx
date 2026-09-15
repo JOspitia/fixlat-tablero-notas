@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Navigate, useLocation, useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 
 export default function LoginPage() {
@@ -12,13 +12,6 @@ export default function LoginPage() {
     const [password, setPassword] = useState('');
     const [submitting, setSubmitting] = useState(false);
 
-    // If already authenticated, redirect away from /login.
-    useEffect(() => {
-        if (!loading && user) {
-            navigate(fromLocation?.pathname || '/tablero', { replace: true });
-        }
-    }, [user, loading, navigate, fromLocation]);
-
     // Clear inactivation toast on unmount so it doesn't persist.
     useEffect(() => {
         return () => {
@@ -26,26 +19,27 @@ export default function LoginPage() {
         };
     }, [fromInactivation, clearInactivityMessage]);
 
+    // If already authenticated (e.g. coming back to /login), redirect away.
+    useEffect(() => {
+        if (!loading && user) {
+            navigate(fromLocation?.pathname || '/tablero', { replace: true });
+        }
+    }, [user, loading, navigate, fromLocation]);
+
     async function handleSubmit(e) {
         e.preventDefault();
         if (submitting) return;
         setSubmitting(true);
         try {
-            await login(email.trim(), password);
-            // Navigation handled by useEffect above.
+            const profile = await login(email.trim(), password);
+            const target = fromLocation?.pathname || '/tablero';
+            navigate(target, { replace: true });
+            return profile;
         } catch {
-            // Error already set in AuthContext.
+            // Error already set in AuthContext; UI displays it inline.
         } finally {
             setSubmitting(false);
         }
-    }
-
-    if (loading || user) {
-        return (
-            <div className="flex items-center justify-center h-screen">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600" />
-            </div>
-        );
     }
 
     const inactivationNotice = fromInactivation || inactivityMessage;
