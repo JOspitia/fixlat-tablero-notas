@@ -19,10 +19,12 @@ return [
 
     'allowed_methods' => ['*'],
 
-    'allowed_origins' => array_filter([
-        env('FRONTEND_ORIGIN'),
+    'allowed_origins' => array_values(array_unique(array_filter([
+        env('FRONTEND_ORIGIN', 'http://localhost:3000'),
         env('FRONTEND_ORIGIN_PROD'),
-    ]),
+        'http://localhost:3000',
+        'http://127.0.0.1:3000',
+    ]))),
 
     'allowed_origins_patterns' => [],
 

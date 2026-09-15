@@ -5,6 +5,7 @@ use App\Http\Middleware\EnsureUserIsAdmin;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
+use Illuminate\Http\Middleware\HandleCors;
 use Illuminate\Http\Request;
 
 return Application::configure(basePath: dirname(__DIR__))
@@ -15,6 +16,9 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        // Force HandleCors to run on every request (avoids `php artisan serve`
+        // skipping it for /api/* pre-flight responses).
+        $middleware->prepend(HandleCors::class);
         $middleware->alias([
             'auth.active' => EnsureUserIsActive::class,
             'auth.admin' => EnsureUserIsAdmin::class,
