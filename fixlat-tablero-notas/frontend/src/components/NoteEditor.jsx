@@ -24,7 +24,11 @@ export default function NoteEditor({ note, position, onSave, onCancel, onDelete,
 
     function handleSubmit(e) {
         e.preventDefault();
+        // Spread the original note so `id` (and any other fields the editor
+        // doesn't render) is preserved. The parent decides if it's a create
+        // (id === null) vs update (id is a number) based on the spread `id`.
         onSave({
+            ...note,
             title: title.trim(),
             text: text.trim() || null,
             status,
