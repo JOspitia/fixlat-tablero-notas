@@ -1,0 +1,8 @@
+# AI tooling (regenerable / auto-generado / personal)
+.codegraph/
+.atl/
+.gga
+.vscode
+.env
+.openspec/
+openspec/
