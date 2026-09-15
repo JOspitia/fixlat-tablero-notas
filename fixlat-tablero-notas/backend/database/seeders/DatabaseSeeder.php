@@ -32,7 +32,7 @@ class DatabaseSeeder extends Seeder
             ['email' => 'user@test.com'],
             [
                 'name' => 'Usuario Demo',
-                'password' => Hash::make('user123'),
+                'password' => Hash::make('user1234'),
                 'role' => 'user',
                 'is_active' => true,
             ]
