@@ -70,7 +70,6 @@ export default function UserFormModal({ user, onClose, onSaved }) {
             if (status === 422) {
                 const fieldErrors = err.response?.data?.errors ?? {};
                 setErrors(fieldErrors);
-                // Surface first error as toast too
                 const firstKey = Object.keys(fieldErrors)[0];
                 if (firstKey) toastError(fieldErrors[firstKey][0]);
             } else {
@@ -82,23 +81,25 @@ export default function UserFormModal({ user, onClose, onSaved }) {
     }
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40">
-            <div className="bg-white rounded-lg shadow-xl w-full max-w-md p-6 flex flex-col gap-4">
-                <div className="flex items-start justify-between">
-                    <h2 className="text-xl font-bold text-gray-800">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/50 animate-fade-in">
+            <div className="bg-white rounded-md shadow-xl border border-gray-200 w-full max-w-md p-6 flex flex-col gap-4">
+                {/* Header */}
+                <div className="flex items-center justify-between pb-3 border-b border-gray-200">
+                    <h2 className="text-base font-bold text-gray-900">
                         {isEdit ? 'Editar usuario' : 'Nuevo usuario'}
                     </h2>
                     <button
                         type="button"
                         onClick={onClose}
                         disabled={submitting}
-                        className="text-2xl leading-none text-gray-400 hover:text-gray-600 disabled:opacity-50"
+                        className="text-gray-400 hover:text-gray-600 text-lg leading-none p-1 disabled:opacity-50"
                         aria-label="Cerrar"
                     >
-                        ×
+                        ✕
                     </button>
                 </div>
 
+                {/* Form */}
                 <form onSubmit={handleSubmit} className="flex flex-col gap-3">
                     <Field label="Nombre" error={errors.name?.[0]}>
                         <input
@@ -108,6 +109,7 @@ export default function UserFormModal({ user, onClose, onSaved }) {
                             required
                             maxLength={255}
                             autoFocus
+                            placeholder="Nombre del usuario"
                             className={inputClass(errors.name)}
                         />
                     </Field>
@@ -119,6 +121,7 @@ export default function UserFormModal({ user, onClose, onSaved }) {
                             onChange={(e) => update('email', e.target.value.toLowerCase())}
                             required
                             maxLength={255}
+                            placeholder="usuario@ejemplo.com"
                             className={inputClass(errors.email)}
                         />
                     </Field>
@@ -138,7 +141,7 @@ export default function UserFormModal({ user, onClose, onSaved }) {
                         <Field
                             label="Contraseña inicial"
                             error={errors.password?.[0]}
-                            hint="Mínimo 8 caracteres. Se puede cambiar después."
+                            hint="Mínimo 8 caracteres."
                         >
                             <input
                                 type="password"
@@ -148,42 +151,43 @@ export default function UserFormModal({ user, onClose, onSaved }) {
                                 minLength={8}
                                 maxLength={64}
                                 autoComplete="new-password"
+                                placeholder="••••••••"
                                 className={inputClass(errors.password)}
                             />
                         </Field>
                     )}
 
-                    <label className="flex items-center gap-2 text-sm text-gray-700">
+                    <label className="flex items-center gap-2 text-xs font-semibold text-gray-700 cursor-pointer pt-1">
                         <input
                             type="checkbox"
                             checked={form.is_active}
                             onChange={(e) => update('is_active', e.target.checked)}
-                            className="rounded"
+                            className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                         />
                         Activo (puede iniciar sesión)
                     </label>
 
                     {errors.message && (
-                        <div className="text-sm text-red-700 bg-red-50 border border-red-200 rounded px-3 py-2">
+                        <div className="text-xs text-red-700 bg-red-50 border border-red-200 rounded p-2.5 font-medium">
                             {errors.message}
                         </div>
                     )}
 
-                    <div className="flex gap-2 pt-2">
+                    <div className="flex justify-end gap-2 pt-3 border-t border-gray-200 mt-2">
                         <button
                             type="button"
                             onClick={onClose}
                             disabled={submitting}
-                            className="flex-1 px-4 py-2 rounded bg-gray-100 text-gray-700 hover:bg-gray-200 disabled:opacity-50 transition"
+                            className="px-3.5 py-2 rounded-md bg-white border border-gray-300 text-gray-700 font-semibold text-xs hover:bg-gray-100 transition disabled:opacity-50"
                         >
                             Cancelar
                         </button>
                         <button
                             type="submit"
                             disabled={submitting}
-                            className="flex-1 px-4 py-2 rounded bg-blue-600 text-white font-semibold hover:bg-blue-700 disabled:opacity-50 transition"
+                            className="px-4 py-2 rounded-md bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs shadow-sm transition disabled:opacity-50"
                         >
-                            {submitting ? 'Guardando…' : isEdit ? 'Guardar cambios' : 'Crear usuario'}
+                            {submitting ? 'Guardando...' : isEdit ? 'Guardar cambios' : 'Crear usuario'}
                         </button>
                     </div>
                 </form>
@@ -195,17 +199,15 @@ export default function UserFormModal({ user, onClose, onSaved }) {
 function Field({ label, error, hint, children }) {
     return (
         <label className="flex flex-col gap-1">
-            <span className="text-sm font-medium text-gray-700">{label}</span>
+            <span className="text-xs font-semibold text-gray-700">{label}</span>
             {children}
-            {error && <span className="text-xs text-red-700">{error}</span>}
-            {!error && hint && <span className="text-xs text-gray-500">{hint}</span>}
+            {error && <span className="text-[11px] font-medium text-red-600">{error}</span>}
+            {!error && hint && <span className="text-[11px] text-gray-500">{hint}</span>}
         </label>
     );
 }
 
 function inputClass(error) {
-    const base = 'border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2';
-    return error
-        ? `${base} border-red-300 focus:ring-red-500`
-        : `${base} border-gray-300 focus:ring-blue-500`;
+    const base = 'w-full px-3 py-2 text-xs text-gray-900 bg-white border rounded-md outline-none transition focus:border-blue-500 focus:ring-1 focus:ring-blue-500 placeholder-gray-400 font-medium';
+    return error ? `${base} border-red-300 focus:border-red-500` : `${base} border-gray-300`;
 }
