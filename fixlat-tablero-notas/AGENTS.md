@@ -85,3 +85,57 @@ cd lambda && sam build && sam deploy --guided
 codegraph status
 codegraph explore "<query>"
 ```
+
+---
+
+## 7. IA Usage
+
+Este proyecto se construyó con asistencia de IA para **validación y seguimiento en la implementación del proyecto**.
+
+### Herramientas
+
+- **Asistente**: opencode con modelos intercambiables según la fase (revisión, generación, búsqueda).
+- **MCPs**:
+  - `engram` — memoria persistente entre sesiones (decisiones de scope, invariantes, patrones arquitectónicos).
+  - `codegraph` — análisis estructural del código (preguntas sobre archivos, call paths, blast radius).
+  - `context7` — consulta de documentación actualizada de librerías.
+- **Skills SDD** (Spec-Driven Development): `sdd-init`, `sdd-explore`, `sdd-propose`, `sdd-spec`, `sdd-design`, `sdd-tasks`, `sdd-apply`, `sdd-verify`, `sdd-archive`.
+- **Skill `tolkien`**: redacción de las HUs a partir de contenido aprobado por el humano.
+
+### Metodología aplicada
+
+- Lectura de `prueba-tecnica.md` para extraer 4 features: `auth`, `tablero-notas`, `dashboard-metrics`, `admin-usuarios`.
+- Por cada feature, walkthrough guiado de **9 secciones** con el humano: Bloqueos y dependencias, Variables y configuración, Assumptions, Out of Scope, Happy Path, Sad Paths, Edge Cases, Stupid Cases, Criterios de aceptación.
+- **Validación humana en cada decisión**: nada se agregó al scope sin confirmación explícita del usuario.
+- **Regla "explicit-only"**: solo lo que el documento técnico pide literalmente; cualquier adición (rate limit, logging, timeouts, 404 page, soft deletes, etc.) fue propuesta y aprobada por el usuario explícitamente antes de incluirse.
+- **Push back documentado**: dos veces la IA rechazó cambios del usuario por contradecir el doc literal:
+  - Mensajes distintos de error en login (romperían anti-enumeración).
+  - Ownership en notas (contradice `prueba-tecnica.md §2`).
+
+### Output verificable
+
+Cuatro HUs escritas en `documents/`:
+
+| HU | Archivo | Tamaño | Criterios de aceptación |
+|---|---|---|---|
+| HU-01 auth | `documents/HU-01-auth.md` | 26 KB | 37 ACs |
+| HU-02 tablero-notas | `documents/HU-02-tablero-notas.md` | 33 KB | 52 ACs |
+| HU-03 dashboard-metrics | `documents/HU-03-dashboard-metrics.md` | 21 KB | 33 ACs |
+| HU-04 admin-usuarios | `documents/HU-04-admin-usuarios.md` | 33 KB | 46 ACs |
+| **Total** | | **~113 KB** | **168 ACs** |
+
+Todos los ACs son binarios y verificables manualmente (no se agregaron tests automatizados por decisión del proyecto).
+
+### Decisiones arquitectónicas derivadas del walkthrough
+
+- **Backend en capas**: `Request → Controller → Service → Model → Resource` por feature. Los Service concentran reglas de negocio (incluida la invariante del último admin activo).
+- **Anti-enumeración firme en login**: mensaje genérico único para "email no existe" y "contraseña incorrecta"; distinción solo en logs internos.
+- **Optimistic locking en edición de notas**: `PUT /api/notes/{id}` valida `updated_at`; mismatch → 409 con estado actual del servidor.
+- **Invariante del último admin activo**: validada en backend con un único mensaje literal `"No se puede desactivar al último administrador activo."` aplicado a los 4 vectores de violación (auto-desactivación, cambio de rol, combinación, otros admins que afecten el conteo).
+- **Bug fix de Lambda**: la query de `lambda/app.ts` no filtraba soft-deleted; se corrigió a `WHERE deleted_at IS NULL` (consistencia con HU-02 que sí usa `SoftDeletes`).
+- **Timeouts HTTP transversales**: frontend 10s, backend → Lambda 5s.
+- **Paginación, búsqueda, filtros, ownership, Realtime**: explícitamente descartados en cada HU por no estar en el doc.
+
+### Persistencia de decisiones
+
+Las decisiones de scope, las reglas del proyecto (scope estricto, sin tests, sin persistencia post-cierre), las invariantes y las excepciones aprobadas están guardadas en Engram con `topic_key`s estructurados (`hu/auth/*`, `hu/project-rules`, `hu/tablero-notes-ownership`, etc.). Futuras sesiones pueden consultar este historial sin repetir las discusiones.
