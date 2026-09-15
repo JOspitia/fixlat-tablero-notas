@@ -53,19 +53,6 @@ export default function TableroPage() {
         return null;
     }, [editingId, notes]);
 
-    // Compute canvas dimensions from the furthest note's position + 220/180 size + padding.
-    // Ensures the canvas "wraps" notes (per design decision).
-    const canvasDims = useMemo(() => {
-        const padding = 120;
-        let width = 1200;
-        let height = 800;
-        for (const n of notes) {
-            width = Math.max(width, n.position_x + 220 + padding);
-            height = Math.max(height, n.position_y + 180 + padding);
-        }
-        return { width, height };
-    }, [notes]);
-
     // ---- Mutations ----
     const handleCreate = useCallback(() => {
         const newX = 60 + Math.random() * 200;
@@ -195,19 +182,21 @@ export default function TableroPage() {
     return (
         <div className="relative h-full">
             <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
-                {/* The canvas: relative container, dots background, wraps notes */}
+                {/* The canvas covers the full main area (100% × 100%).
+                    Notes are absolutely positioned inside; if they go off-screen,
+                    the main container's overflow-auto lets the user scroll. */}
                 <div
                     ref={canvasRef}
                     style={{
                         position: 'relative',
-                        width: `${canvasDims.width}px`,
-                        height: `${canvasDims.height}px`,
+                        width: '100%',
+                        height: '100%',
+                        minHeight: '100vh',
                         backgroundColor: '#F5F5F7',
                         backgroundImage:
                             'radial-gradient(circle, #c8c8d0 1px, transparent 1px)',
                         backgroundSize: '24px 24px',
                         backgroundPosition: '0 0',
-                        minHeight: 'calc(100vh - 65px)', // viewport minus sidebar header
                     }}
                 >
                     {notes.length === 0 && !editingNote && (
