@@ -154,6 +154,7 @@ sam delete --stack-name fixlat-dashboard-metrics
 * **Persistencia garantizada:** El uso de `migrate --force` + `updateOrCreate` en el seeder evita destrucción de datos al reiniciar los contenedores.
 * **CORS en Lambda:** Todas las respuestas (éxito y error) incluyen `Access-Control-Allow-Origin: *` para permitir peticiones desde el frontend.
 * **Manejo de Roles:** La restricción de conservar al menos un administrador activo se valida en el backend y en la interfaz.
+* **Diseño UI/UX (Clean UI / Flat Design):** Se aplicó una refactorización visual centrada en usabilidad limpia y moderna, descartando efectos de glasmorfismo o transparencias complejas en favor de colores 100% sólidos, contraste nítido, distinción semántica por estado en las notas y bordes redondeados consistentes.
 
 ---
 
@@ -169,7 +170,8 @@ sam delete --stack-name fixlat-dashboard-metrics
     | HU-02 tablero | 30 min | 30 min |
     | HU-03 dashboard | 30 min | 30 min |
     | HU-04 admin | 30 min | 30 min |
-  * **Total estimado:** ~7h 30min (dentro del límite de 8h de trabajo efectivo de `prueba-tecnica.md §6`).
+  * **~30 min en mejora del apartado visual y experiencia de usuario (UI/UX):** Refactorización visual del frontend hacia un estilo *Clean UI / Flat Design* pulido y profesional (lienzo con patrón de puntos sutil, notas en colores pastel 100% sólidos según su estado —amarillo para *Pendiente*, azul para *En curso* y verde para *Hecho*—, menú lateral con contraste nítido, modales y botones de acción optimizados sin transparencias ni glasmorfismo).
+  * **Total estimado:** ~8h (cumpliendo el límite de 8h de trabajo efectivo estipulado en `prueba-tecnica.md §6`).
 * **Funcionalidad implementada** (estado actual del código):
 
   | HU | Backend | Frontend | Estado |
