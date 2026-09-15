@@ -93,7 +93,7 @@ class AdminUserController extends Controller
      */
     public function toggleActive(Request $request, int $id): JsonResponse
     {
-        $request->validate([
+        $data = $request->validate([
             'is_active' => ['required', 'boolean'],
         ]);
 
@@ -109,7 +109,7 @@ class AdminUserController extends Controller
             $user = $this->users->toggleActive(
                 $request->user(),
                 $user,
-                (bool) $request->validated()['is_active'],
+                (bool) $data['is_active'],
             );
         } catch (LastAdminInvariantException $e) {
             return response()->json([
