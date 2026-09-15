@@ -2,11 +2,18 @@
   "name": "fixlat-dashboard-lambda",
   "version": "1.0.0",
   "description": "Función AWS Lambda para cálculo de métricas del dashboard",
-  "main": "app.js",
+  "main": "dist/app.js",
   "scripts": {
-    "start": "node -e \"const app = require('./app'); require('http').createServer(async (req, res) => { const result = await app.handler({}); res.writeHead(result.statusCode, result.headers || {}); res.end(result.body); }).listen(3001, () => console.log('Lambda local ejecutándose en puerto 3001'));\""
+    "build": "tsc",
+    "start": "node -e \"const app = require('./dist/app'); require('http').createServer(async (req, res) => { const result = await app.handler({}, {}, () => {}); res.writeHead(result.statusCode, result.headers || {}); res.end(result.body); }).listen(3001, () => console.log('Lambda local ejecutándose en puerto 3001'));\""
   },
   "dependencies": {
     "pg": "^8.11.3"
+  },
+  "devDependencies": {
+    "@types/aws-lambda": "^8.10.145",
+    "@types/node": "^20.14.0",
+    "@types/pg": "^8.11.6",
+    "typescript": "^5.4.5"
   }
 }

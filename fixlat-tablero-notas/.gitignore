@@ -1,0 +1,33 @@
+# Laravel / PHP
+backend/vendor/
+backend/storage/
+backend/bootstrap/cache/
+backend/.env
+backend/.env.*
+!backend/.env.example
+backend/.phpunit.cache/
+backend/.phpunit.result.cache
+backend/Homestead.json
+backend/Homestead.yaml
+backend/auth.json
+
+# Node / Vite / React (frontend + lambda)
+node_modules/
+dist/
+build/
+.vite/
+
+# Logs y cobertura
+*.log
+coverage/
+.npm/
+.yarn/
+
+# PHP / Composer
+.phpunit.cache/
+
+# IDE / OS
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db

@@ -32,7 +32,7 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       CodeUri: ./
-      Handler: app.handler
+      Handler: dist/app.handler
       Events:
         GetMetrics:
           Type: Api
