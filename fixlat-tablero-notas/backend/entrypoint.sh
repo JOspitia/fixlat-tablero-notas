@@ -1,6 +1,11 @@
 #!/bin/sh
 set -e
 
+# Si no existe .env (ej. al clonar el repositorio), crearlo desde .env.example
+if [ ! -f .env ]; then
+    cp .env.example .env
+fi
+
 # Generar APP_KEY sólo si no está configurada
 if [ -z "$APP_KEY" ]; then
     php artisan key:generate --force
