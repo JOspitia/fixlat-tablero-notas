@@ -176,11 +176,23 @@ export default function TableroPage() {
         try {
             await notesApi.deleteNote(note.id);
             setNotes((prev) => prev.filter((n) => n.id !== note.id));
+            // HU-06 cascade (frontend mirror of the backend listener in
+            // Note::booted): drop local connectors involving this note.
+            // Backend already soft-deleted them; this keeps local state in
+            // sync. Defense in depth: if the cascade failed on the backend
+            // (shouldn't happen), the connectors would 404 on next refetch
+            // and the ConnectorLayer skips rendering them via notesById.
+            setConnectors((prev) => prev.filter(
+                (c) => c.source_note_id !== note.id && c.destination_note_id !== note.id,
+            ));
             if (editingId === note.id) setEditingId(null);
             success('Nota eliminada');
         } catch (err) {
             if (err.response?.status === 404) {
                 setNotes((prev) => prev.filter((n) => n.id !== note.id));
+                setConnectors((prev) => prev.filter(
+                    (c) => c.source_note_id !== note.id && c.destination_note_id !== note.id,
+                ));
                 success('Nota eliminada');
             } else {
                 toastError('No se pudo eliminar la nota.');

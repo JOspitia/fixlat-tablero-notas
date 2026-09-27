@@ -58,7 +58,13 @@ function resolveFontFamily(value) {
     return `var(${variableName}, system-ui, sans-serif)`;
 }
 
-export default function NoteCard({ note, onEdit, onDelete }) {
+export default function NoteCard({
+    note,
+    onEdit,
+    onDelete,
+    isConnectorSource = false,
+    isConnectorModeActive = false,
+}) {
     const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
         id: `note-${note.id}`,
     });
@@ -91,6 +97,14 @@ export default function NoteCard({ note, onEdit, onDelete }) {
             {...listeners}
             className={`absolute rounded-md p-4 shadow-md border ${colorConfig.bg} ${colorConfig.border} ${shapeClass} flex flex-col justify-between select-none cursor-grab active:cursor-grabbing transition-shadow ${
                 isDragging ? 'opacity-90 shadow-2xl scale-105 z-50' : ''
+            } ${
+                isConnectorSource
+                    ? 'outline outline-[3px] outline-blue-600 outline-offset-2 z-30'
+                    : ''
+            } ${
+                isConnectorModeActive && !isConnectorSource
+                    ? 'cursor-crosshair'
+                    : ''
             }`}
         >
             {/* Header: Title & Status Badge */}
@@ -102,6 +116,11 @@ export default function NoteCard({ note, onEdit, onDelete }) {
                     <span className="px-2.5 py-0.5 text-[11px] font-medium text-gray-700 bg-white border border-gray-200 rounded-full shrink-0">
                         {note.status}
                     </span>
+                    {isConnectorSource && (
+                        <span className="px-2.5 py-0.5 text-[11px] font-semibold text-white bg-blue-600 border border-blue-700 rounded-full shrink-0">
+                            Origen
+                        </span>
+                    )}
                 </div>
 
                 {/* Body Text */}
