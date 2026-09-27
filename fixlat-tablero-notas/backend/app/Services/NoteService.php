@@ -2,21 +2,21 @@
 
 namespace App\Services;
 
+use App\Exceptions\OptimisticLockException;
 use App\Models\Note;
 use App\Models\User;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 
 class NoteService
 {
-    public function __construct(private readonly Request $request)
-    {
-    }
+    public function __construct(private readonly Request $request) {}
 
     /**
      * List all active notes (soft-deleted excluded by default).
      */
-    public function list(): \Illuminate\Database\Eloquent\Collection
+    public function list(): Collection
     {
         return Note::orderBy('created_at', 'desc')->get();
     }
@@ -26,19 +26,32 @@ class NoteService
      */
     public function create(User $actor, array $data): Note
     {
-        $note = Note::create([
-            'title' => $data['title'],
-            'text' => $data['text'] ?? null,
-            'status' => $data['status'],
-            'position_x' => $data['position_x'],
-            'position_y' => $data['position_y'],
-        ]);
+        // HU-05: enrich-fields flow through `array_intersect_key` against the
+        // same whitelist used by `update()`. When the client omits them, the
+        // Note model's `$attributes` defaults apply (AC15). When the client
+        // sends them, FormRequest validation (StoreNoteRequest) has already
+        // enforced the allow-list before reaching this method.
+        $note = new Note;
+        $note->fill(array_intersect_key(
+            $data,
+            array_flip([
+                'title', 'text', 'status', 'position_x', 'position_y',
+                'shape', 'font_family', 'text_align',
+            ])
+        ));
+        $note->save();
 
-        Log::info('notes.created', [
-            'user_id' => $actor->id,
-            'note_id' => $note->id,
-            'ip' => $this->request->ip(),
-        ]);
+        // HU-05 WU-3a: lifecycle log guarded behind APP_DEBUG for consistency
+        // with notes.updated. Low-frequency today, but future bulk imports or
+        // batch operations could amplify volume — keep all notes.* logs at the
+        // same level to avoid surprise noise in production.
+        if (config('app.debug')) {
+            Log::debug('notes.created', [
+                'user_id' => $actor->id,
+                'note_id' => $note->id,
+                'ip' => $this->request->ip(),
+            ]);
+        }
 
         return $note;
     }
@@ -53,14 +66,27 @@ class NoteService
         $serverUpdatedAt = $note->updated_at?->toIso8601String();
 
         if ($clientUpdatedAt !== $serverUpdatedAt) {
-            throw new \App\Exceptions\OptimisticLockException(
+            throw new OptimisticLockException(
                 $note->fresh(),
                 'La nota fue modificada por otro usuario. Recarga e intenta de nuevo.'
             );
         }
 
-        $old = $note->only(['title', 'text', 'status', 'position_x', 'position_y']);
-        $note->fill(array_intersect_key($data, array_flip(['title', 'text', 'status', 'position_x', 'position_y'])));
+        // HU-05: whitelist extended with shape/font_family/text_align so PUT
+        // persists the visual-enrichment fields (AC21-AC34). Per HU-02 §B7 + E2,
+        // `array_intersect_key` silently drops fields not present in the body,
+        // so the 3 enrichment fields keep their existing values when omitted.
+        $old = $note->only([
+            'title', 'text', 'status', 'position_x', 'position_y',
+            'shape', 'font_family', 'text_align',
+        ]);
+        $note->fill(array_intersect_key(
+            $data,
+            array_flip([
+                'title', 'text', 'status', 'position_x', 'position_y',
+                'shape', 'font_family', 'text_align',
+            ])
+        ));
         $note->save();
 
         $changed = [];
@@ -71,12 +97,19 @@ class NoteService
             }
         }
 
-        Log::info('notes.updated', [
-            'user_id' => $actor->id,
-            'note_id' => $note->id,
-            'fields_changed' => $changed,
-            'ip' => $this->request->ip(),
-        ]);
+        // HU-05 WU-3a: per-update log is high-frequency (one entry per PUT),
+        // which is risky under concurrent load (one I/O op per request).
+        // Guard behind Laravel's standard APP_DEBUG switch — silently no-op
+        // in production. All notes.* lifecycle logs (created/updated/deleted)
+        // share the same guard for consistency.
+        if (config('app.debug')) {
+            Log::debug('notes.updated', [
+                'user_id' => $actor->id,
+                'note_id' => $note->id,
+                'fields_changed' => $changed,
+                'ip' => $this->request->ip(),
+            ]);
+        }
 
         return $note;
     }
@@ -108,10 +141,16 @@ class NoteService
     {
         $note->delete();
 
-        Log::info('notes.deleted', [
-            'user_id' => $actor->id,
-            'note_id' => $note->id,
-            'ip' => $this->request->ip(),
-        ]);
+        // HU-05 WU-3a: lifecycle log guarded behind APP_DEBUG for consistency
+        // with notes.updated and notes.created. Low-frequency today, but future
+        // bulk operations (mass delete, cleanup jobs) could amplify volume —
+        // keep all notes.* logs at the same level to avoid surprise noise.
+        if (config('app.debug')) {
+            Log::debug('notes.deleted', [
+                'user_id' => $actor->id,
+                'note_id' => $note->id,
+                'ip' => $this->request->ip(),
+            ]);
+        }
     }
 }

@@ -14,9 +14,7 @@ use Illuminate\Http\Response;
 
 class NoteController extends Controller
 {
-    public function __construct(private readonly NoteService $notes)
-    {
-    }
+    public function __construct(private readonly NoteService $notes) {}
 
     /**
      * GET /api/notes
