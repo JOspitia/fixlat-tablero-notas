@@ -12,6 +12,12 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * Per `documents/HU-02-tablero-notas.md`:
  * - No ownership: any active user can create/edit/move/delete any note.
  * - SoftDeletes: `$note->delete()` sets `deleted_at`; default queries exclude them.
+ *
+ * HU-05 extends the model with three visual-enrichment fields
+ * (`shape`, `font_family`, `text_align`). See `documents/HU-05-enriquecimiento-notas.md`.
+ * Constants below mirror the DB CHECK constraints defined in the additive migration
+ * `2026_09_27_154611_add_shape_font_align_to_notes.php` and the `in:` rules in
+ * `StoreNoteRequest` / `UpdateNoteRequest`.
  */
 class Note extends Model
 {
@@ -26,6 +32,23 @@ class Note extends Model
         'status',
         'position_x',
         'position_y',
+        'shape',
+        'font_family',
+        'text_align',
+    ];
+
+    /**
+     * Default attribute values for unsaved instances.
+     *
+     * Per HU-05 §3 B8 + AC15/AC22: when a client omits `shape`/`font_family`/`text_align`
+     * the database defaults apply; this `protected $attributes` guarantees the same
+     * defaults on in-memory instances before save (e.g. for tests or service-layer
+     * construction), independent of the migration's `DEFAULT` clauses.
+     */
+    protected $attributes = [
+        'shape' => 'rectangle',
+        'font_family' => 'Inter',
+        'text_align' => 'left',
     ];
 
     /**
@@ -43,12 +66,71 @@ class Note extends Model
      * Allowed status values (mirror DB CHECK constraint for in-PHP validation).
      */
     public const STATUS_PENDIENTE = 'Pendiente';
+
     public const STATUS_EN_CURSO = 'En curso';
+
     public const STATUS_HECHO = 'Hecho';
 
     public const ALLOWED_STATUSES = [
         self::STATUS_PENDIENTE,
         self::STATUS_EN_CURSO,
         self::STATUS_HECHO,
+    ];
+
+    /**
+     * Allowed `shape` values (HU-05 §6.1, mirror of `notes_shape_check` CHECK).
+     *
+     * The canonical order matches the Miro-style catalog documented in HU-05 §6.1
+     * (rectangle first as the default; cylinder last). Keep this list in sync with
+     * the CHECK constraint emitted by the migration when adding a new shape — both
+     * must move together.
+     */
+    public const ALLOWED_SHAPES = [
+        'rectangle',
+        'rounded_rectangle',
+        'diamond',
+        'triangle',
+        'circle',
+        'ellipse',
+        'star',
+        'hexagon',
+        'pentagon',
+        'octagon',
+        'arrow',
+        'parallelogram',
+        'trapezoid',
+        'message_bubble',
+        'cloud',
+        'cylinder',
+    ];
+
+    /**
+     * Allowed `text_align` values (HU-05 §6.3, mirror of `notes_text_align_check`).
+     */
+    public const ALLOWED_TEXT_ALIGNS = [
+        'left',
+        'center',
+        'right',
+        'justify',
+    ];
+
+    /**
+     * Documentation reference list for `font_family`.
+     *
+     * Per HU-05 decision A13: `font_family` has NO DB CHECK (catalog may grow without
+     * migration) and is validated exclusively in the FormRequest via `in:` rule
+     * (StoreNoteRequest / UpdateNoteRequest). This constant exists so the model
+     * carries the canonical catalog for code that needs to enumerate it (e.g. tests,
+     * future "list available fonts" endpoint) and to keep the migration/FormRequest
+     * in sync with a single source of truth in PHP.
+     */
+    public const ALLOWED_FONT_FAMILIES = [
+        'Inter',
+        'Merriweather',
+        'JetBrains Mono',
+        'Caveat',
+        'Lobster',
+        'Playfair Display',
+        'Poppins',
     ];
 }
