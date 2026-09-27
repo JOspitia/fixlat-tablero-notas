@@ -3,6 +3,7 @@ import { DndContext, PointerSensor, useSensor, useSensors } from '@dnd-kit/core'
 import { useToast } from '../contexts/ToastContext';
 import NoteCard from '../components/NoteCard';
 import NoteEditor from '../components/NoteEditor';
+import ConnectorLayer from '../components/ConnectorLayer';
 import * as notesApi from '../services/notes';
 import * as connectorsApi from '../services/connectors';
 
@@ -254,6 +255,17 @@ export default function TableroPage() {
                             </p>
                         </div>
                     )}
+
+                    {/* ConnectorLayer — SVG overlay that renders all connector arrows.
+                        Must be BEFORE the NoteCards map so notes sit above arrows in z-order. */}
+                    <ConnectorLayer
+                        notes={filteredNotes}
+                        connectors={connectors}
+                        onConnectorClick={() => {
+                            // TODO WU-F5: open ConnectorMiniToolbar at click midpoint.
+                            // For now we just no-op so clicks don't crash.
+                        }}
+                    />
 
                     {/* Note Cards */}
                     {filteredNotes.map((note) => (
