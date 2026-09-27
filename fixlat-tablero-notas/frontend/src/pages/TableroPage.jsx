@@ -4,6 +4,7 @@ import { useToast } from '../contexts/ToastContext';
 import NoteCard from '../components/NoteCard';
 import NoteEditor from '../components/NoteEditor';
 import * as notesApi from '../services/notes';
+import * as connectorsApi from '../services/connectors';
 
 const NEW_NOTE_DEFAULTS = {
     title: '',
@@ -26,6 +27,7 @@ const STATUS_FILTERS = [
 export default function TableroPage() {
     const { error: toastError, success } = useToast();
     const [notes, setNotes] = useState([]);
+    const [connectors, setConnectors] = useState([]);
     const [loading, setLoading] = useState(true);
     const [editingId, setEditingId] = useState(null); // null | 'new' | note.id
     const [editorError, setEditorError] = useState(null);
@@ -37,15 +39,28 @@ export default function TableroPage() {
 
     const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }));
 
-    // Initial load
+    // Initial load: notes + connectors in parallel (HU-06 Flow 2).
+    // Failures are independent — if notes succeed but connectors fail,
+    // we still show the canvas; the user can retry / the next mount will
+    // reload. Surfacing a single toast for either failure keeps UX clean.
+    // Promise.all is fail-fast: the first rejection short-circuits the
+    // other leg, so we get one toast instead of two on partial failure.
     useEffect(() => {
         let cancelled = false;
         (async () => {
             try {
-                const list = await notesApi.listNotes();
-                if (!cancelled) setNotes(list);
+                const [list, connectorList] = await Promise.all([
+                    notesApi.listNotes(),
+                    connectorsApi.listConnectors(),
+                ]);
+                if (cancelled) return;
+                setNotes(list);
+                setConnectors(connectorList);
             } catch (err) {
-                if (!cancelled) toastError('No se pudieron cargar las notas.');
+                if (cancelled) return;
+                // Log the full error so we can diagnose which leg failed.
+                console.error('TableroPage initial load failed:', err);
+                toastError('No se pudieron cargar las notas o los conectores.');
             } finally {
                 if (!cancelled) setLoading(false);
             }
