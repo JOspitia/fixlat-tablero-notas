@@ -57,36 +57,82 @@ class NoteService
     }
 
     /**
-     * Update content with optimistic locking on updated_at.
-     * Throws OptimisticLockException on stale write (caller converts to 409).
+     * Update content with optimistic locking on the monotonic `version` counter.
+     *
+     * HU-05 WU-3c: replaced the previous `updated_at` timestamp comparison
+     * (which produced false positives under client/server clock skew) with a
+     * monotonic integer `version` (HU-05 WU-3b). The client must echo back the
+     * version it last observed; mismatch → 409.
+     *
+     * No-op success semantics: when the client's `version` is stale but the
+     * candidate values (input ∪ current note) match the persisted attributes
+     * exactly, the save is a true no-op — no state diverged, the user just
+     * re-submitted the same payload. Return the current note unchanged
+     * (skipping the model's `saving` listener so `version` is NOT bumped),
+     * producing a 200 with the existing NoteResource. This closes the
+     * "user clicked save twice" false-positive 409 from the old timestamp
+     * check.
+     *
+     * Throws OptimisticLockException when stale + values differ (caller
+     * converts to 409 with the current server state so the client can reload).
      */
     public function update(User $actor, Note $note, array $data): Note
     {
-        $clientUpdatedAt = $data['updated_at'];
-        $serverUpdatedAt = $note->updated_at?->toIso8601String();
+        $clientVersion = (int) $data['version'];
+        $serverVersion = (int) $note->version;
 
-        if ($clientUpdatedAt !== $serverUpdatedAt) {
+        // HU-05 WU-3c: shared whitelist for the no-op comparison and the
+        // `array_intersect_key` filter. Includes the 3 enrichment fields
+        // (shape/font_family/text_align) — closes the WU-2 deferred bug that
+        // silently dropped them from the persisted payload.
+        $fillableFields = [
+            'title', 'text', 'status', 'position_x', 'position_y',
+            'shape', 'font_family', 'text_align',
+        ];
+
+        if ($clientVersion !== $serverVersion) {
+            // Compute the would-be merged values WITHOUT saving, so we can
+            // decide whether this is a true no-op (same data, stale version
+            // because the user just resubmitted) or a real conflict.
+            // Loose-equality compare per field so request-side `0` (int) and
+            // model-side `0.0` (float, per `casts()`) collapse to the same
+            // semantic value — strict `===` would falsely flag the type
+            // mismatch on every numeric field.
+            $candidate = [];
+            $currentComparable = [];
+            foreach ($fillableFields as $key) {
+                $candidate[$key] = array_key_exists($key, $data) ? $data[$key] : $note->{$key};
+                $currentComparable[$key] = $note->{$key};
+            }
+            $isNoOp = true;
+            foreach ($fillableFields as $key) {
+                if ($candidate[$key] != $currentComparable[$key]) {
+                    $isNoOp = false;
+                    break;
+                }
+            }
+
+            if ($isNoOp) {
+                // No-op success: no actual state change. Skip the save so the
+                // model's `saving` listener does NOT bump `version`, and
+                // return the persisted note as-is.
+                return $note;
+            }
+
+            // Real conflict — values differ, so another writer is in play.
+            // Spanish message + current payload preserve the anti-enumeration
+            // posture of the previous 409 response.
             throw new OptimisticLockException(
                 $note->fresh(),
                 'La nota fue modificada por otro usuario. Recarga e intenta de nuevo.'
             );
         }
 
-        // HU-05: whitelist extended with shape/font_family/text_align so PUT
-        // persists the visual-enrichment fields (AC21-AC34). Per HU-02 §B7 + E2,
-        // `array_intersect_key` silently drops fields not present in the body,
-        // so the 3 enrichment fields keep their existing values when omitted.
-        $old = $note->only([
-            'title', 'text', 'status', 'position_x', 'position_y',
-            'shape', 'font_family', 'text_align',
-        ]);
-        $note->fill(array_intersect_key(
-            $data,
-            array_flip([
-                'title', 'text', 'status', 'position_x', 'position_y',
-                'shape', 'font_family', 'text_align',
-            ])
-        ));
+        // Version matches → proceed with the save. The model's `saving`
+        // listener in `Note::booted()` will auto-increment `version` on this
+        // dirty UPDATE.
+        $old = $note->only($fillableFields);
+        $note->fill(array_intersect_key($data, array_flip($fillableFields)));
         $note->save();
 
         $changed = [];

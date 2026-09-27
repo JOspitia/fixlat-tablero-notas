@@ -44,6 +44,12 @@ class StoreNoteRequest extends FormRequest
                 'not_regex:/[<>]/',
             ],
             'text_align' => ['sometimes', 'string', 'in:'.implode(',', Note::ALLOWED_TEXT_ALIGNS)],
+            // HU-05 WU-3c: `version` is optional on create — the model's
+            // `$attributes['version']` defaults to 1 and the DB column agrees,
+            // so omitting it yields a fresh note at version 1. If a client
+            // sends it (e.g. retry-after-conflict flow), enforce integer ≥ 1
+            // to prevent malformed payloads from poisoning the column.
+            'version' => ['sometimes', 'integer', 'min:1'],
         ];
     }
 
