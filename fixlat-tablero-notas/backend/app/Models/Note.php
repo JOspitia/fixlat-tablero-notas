@@ -35,6 +35,7 @@ class Note extends Model
         'shape',
         'font_family',
         'text_align',
+        'version',
     ];
 
     /**
@@ -44,11 +45,16 @@ class Note extends Model
      * the database defaults apply; this `protected $attributes` guarantees the same
      * defaults on in-memory instances before save (e.g. for tests or service-layer
      * construction), independent of the migration's `DEFAULT` clauses.
+     *
+     * HU-05 WU-3b: `version` defaults to `1` here so freshly-constructed instances
+     * already carry the starting value. The auto-increment on dirty UPDATE happens
+     * in `booted()` below — INSERT keeps `1` because that is the seeded value.
      */
     protected $attributes = [
         'shape' => 'rectangle',
         'font_family' => 'Inter',
         'text_align' => 'left',
+        'version' => 1,
     ];
 
     /**
@@ -59,7 +65,30 @@ class Note extends Model
         return [
             'position_x' => 'float',
             'position_y' => 'float',
+            'version' => 'integer',
         ];
+    }
+
+    /**
+     * Bootstrap model event listeners.
+     *
+     * HU-05 WU-3b — auto-increment `version` on every dirty UPDATE so it behaves as
+     * a monotonic counter. INSERT is left untouched: `$attributes['version']` already
+     * starts new rows at `1`, and the DB column default agrees, so a fresh
+     * `Note::create([...])` lands at version 1 without needing a bump.
+     *
+     * WU-3c will replace the optimistic-lock check in `NoteService` / FormRequests
+     * to compare this `version` (int) instead of `updated_at` (timestamp). Until
+     * then, `version` is persisted but unused by the lock — existing behaviour
+     * continues to apply.
+     */
+    protected static function booted(): void
+    {
+        static::saving(function (Note $note) {
+            if ($note->exists && $note->isDirty()) {
+                $note->version = (int) $note->version + 1;
+            }
+        });
     }
 
     /**
