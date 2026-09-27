@@ -4,8 +4,11 @@ import { useToast } from '../contexts/ToastContext';
 import NoteCard from '../components/NoteCard';
 import NoteEditor from '../components/NoteEditor';
 import ConnectorLayer from '../components/ConnectorLayer';
+import ConnectorFab from '../components/ConnectorFab';
+import ConnectorModeBanner from '../components/ConnectorModeBanner';
 import * as notesApi from '../services/notes';
 import * as connectorsApi from '../services/connectors';
+import { NOTE_CONNECTOR_DEFAULT_STYLE, NOTE_CONNECTOR_MODE_EXIT_DELAY_MS } from '../lib/noteConnectorConstants';
 
 const NEW_NOTE_DEFAULTS = {
     title: '',
@@ -34,6 +37,17 @@ export default function TableroPage() {
     const [editorError, setEditorError] = useState(null);
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedStatusFilter, setSelectedStatusFilter] = useState('ALL');
+
+    // HU-06 connector mode state machine. States:
+    //   null                  → mode inactive (default)
+    //   'pick-source'         → waiting for the user to click the source note
+    //   'pick-destination'    → source picked, waiting for destination
+    //
+    // connectorSourceNoteId is set when the user clicks the source note
+    // while in 'pick-source'.
+    const [connectorMode, setConnectorMode] = useState(null);
+    const [connectorSourceNoteId, setConnectorSourceNoteId] = useState(null);
+
     const canvasRef = useRef(null);
 
     const newNotePositionRef = useRef({ x: 100, y: 100 });
@@ -200,6 +214,88 @@ export default function TableroPage() {
             });
     }
 
+    // HU-06: enter connector mode (FAB click).
+    function handleEnterConnectorMode() {
+        // Don't allow entering connector mode while the editor modal is
+        // open — editor takes priority (US AC59 / AC59a).
+        if (editingId !== null) return;
+        setConnectorMode('pick-source');
+        setConnectorSourceNoteId(null);
+    }
+
+    // HU-06: handle a click on a NoteCard while connector mode is active.
+    // Wired into NoteCard via the onEdit wrapper below.
+    function handleConnectorNoteClick(note) {
+        if (connectorMode === 'pick-source') {
+            setConnectorMode('pick-destination');
+            setConnectorSourceNoteId(note.id);
+            return;
+        }
+        if (connectorMode === 'pick-destination') {
+            // Self-connector guard (US AC56) — toast and stay in mode.
+            if (note.id === connectorSourceNoteId) {
+                toastError('No puedes conectar una nota consigo misma.');
+                return;
+            }
+
+            // Distance guard (US AC85a) — only if both notes have positions.
+            const source = notes.find((n) => n.id === connectorSourceNoteId);
+            if (source &&
+                Math.abs(source.position_x - note.position_x) < 4 &&
+                Math.abs(source.position_y - note.position_y) < 4) {
+                toastError('Mueve una de las notas para poder conectarlas.');
+                return;
+            }
+
+            // Fire POST and exit the mode (success or failure).
+            createConnectorAndExit(connectorSourceNoteId, note.id);
+            return;
+        }
+    }
+
+    async function createConnectorAndExit(sourceId, destinationId) {
+        try {
+            const created = await connectorsApi.createConnector(sourceId, {
+                destination_note_id: destinationId,
+                style: NOTE_CONNECTOR_DEFAULT_STYLE,
+            });
+            setConnectors((prev) => [...prev, created]);
+            success('Conector creado');
+            // Exit mode after the debounce so the user doesn't accidentally
+            // create more than one connector (US Flow 1 step 13).
+            setTimeout(() => exitConnectorMode(), NOTE_CONNECTOR_MODE_EXIT_DELAY_MS);
+        } catch (err) {
+            const status = err.response?.status;
+            const message = err.response?.data?.message
+                || (status === 422
+                    ? Object.values(err.response?.data?.errors ?? {})[0]?.[0]
+                    : null)
+                || 'No se pudo crear el conector.';
+            toastError(message);
+            // Stay in pick-destination so the user can pick a different dest
+            // or hit ESC. (Backend already validated the cap, so a 422 here
+            // means the pair is full — user picks another note.)
+        }
+    }
+
+    function exitConnectorMode() {
+        setConnectorMode(null);
+        setConnectorSourceNoteId(null);
+    }
+
+    // HU-06: ESC handler — exit connector mode (US AC53).
+    useEffect(() => {
+        if (connectorMode === null) return undefined;
+        function handleKeyDown(e) {
+            if (e.key === 'Escape') {
+                e.stopPropagation();
+                exitConnectorMode();
+            }
+        }
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [connectorMode]);
+
     if (loading) {
         return (
             <div className="flex flex-col items-center justify-center h-full bg-gray-50">
@@ -211,6 +307,9 @@ export default function TableroPage() {
 
     return (
         <div className="relative w-full h-full min-h-screen overflow-hidden bg-gray-50">
+            {/* HU-06 — connector mode banner (top, only when mode is active). */}
+            <ConnectorModeBanner visible={connectorMode !== null} />
+
             {/* Top Toolbar: Clean UI, solid white, border-gray-200 */}
             <div className="absolute top-4 left-6 right-6 z-30 flex flex-wrap items-center justify-between gap-3 pointer-events-none">
                 {/* Filter Controls */}
@@ -273,8 +372,16 @@ export default function TableroPage() {
                             <NoteCard
                                 key={note.id}
                                 note={note}
-                                onEdit={(n) => setEditingId(n.id)}
+                                onEdit={(n) => {
+                                    if (connectorMode !== null) {
+                                        handleConnectorNoteClick(n);
+                                        return;
+                                    }
+                                    setEditingId(n.id);
+                                }}
                                 onDelete={handleDelete}
+                                isConnectorSource={connectorMode === 'pick-destination' && connectorSourceNoteId === note.id}
+                                isConnectorModeActive={connectorMode !== null}
                             />
                         )
                     ))}
@@ -297,6 +404,13 @@ export default function TableroPage() {
                     )}
                 </div>
             </DndContext>
+
+            {/* HU-06 — connector FAB (above the note-creation FAB). */}
+            <ConnectorFab
+                active={connectorMode !== null}
+                disabled={editingId !== null}
+                onClick={handleEnterConnectorMode}
+            />
 
             {/* Rule 4: Floating Action Button (FAB) - Solid Corporate Blue bg-blue-600 hover:bg-blue-700 shadow-lg */}
             <button
