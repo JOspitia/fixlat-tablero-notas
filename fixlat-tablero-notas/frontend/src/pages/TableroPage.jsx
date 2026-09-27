@@ -6,9 +6,11 @@ import NoteEditor from '../components/NoteEditor';
 import ConnectorLayer from '../components/ConnectorLayer';
 import ConnectorFab from '../components/ConnectorFab';
 import ConnectorModeBanner from '../components/ConnectorModeBanner';
+import ConnectorMiniToolbar from '../components/ConnectorMiniToolbar';
 import * as notesApi from '../services/notes';
 import * as connectorsApi from '../services/connectors';
 import { NOTE_CONNECTOR_DEFAULT_STYLE, NOTE_CONNECTOR_MODE_EXIT_DELAY_MS } from '../lib/noteConnectorConstants';
+import { getAnchorPoint, getNoteCenter } from '../lib/noteConnectorGeometry';
 
 const NEW_NOTE_DEFAULTS = {
     title: '',
@@ -47,6 +49,11 @@ export default function TableroPage() {
     // while in 'pick-source'.
     const [connectorMode, setConnectorMode] = useState(null);
     const [connectorSourceNoteId, setConnectorSourceNoteId] = useState(null);
+
+    // HU-06 — mini-toolbar state. When `activeToolbarConnector` is set, the
+    // toolbar is visible and positioned at `activeToolbarPosition`.
+    const [activeToolbarConnector, setActiveToolbarConnector] = useState(null);
+    const [activeToolbarPosition, setActiveToolbarPosition] = useState(null);
 
     const canvasRef = useRef(null);
 
@@ -283,6 +290,73 @@ export default function TableroPage() {
         setConnectorSourceNoteId(null);
     }
 
+    // HU-06 — open the mini-toolbar when a connector is clicked.
+    // `position` is computed from the midpoint of the bezier path so the
+    // toolbar appears near the click.
+    function handleConnectorClick(connector) {
+        const source = notes.find((n) => n.id === connector.source_note_id);
+        const dest = notes.find((n) => n.id === connector.destination_note_id);
+        if (!source || !dest) return; // cascade race — ignore
+
+        const sourceCenter = getNoteCenter(source);
+        const destCenter = getNoteCenter(dest);
+        const sourceAnchor = getAnchorPoint(source, destCenter);
+        const destAnchor = getAnchorPoint(dest, sourceCenter);
+        // Bezier midpoint = midpoint of the two anchors (approximation;
+        // the true visual midpoint is at t=0.5 along the bezier curve,
+        // but for toolbar positioning this is good enough).
+        const midX = (sourceAnchor.x + destAnchor.x) / 2;
+        const midY = (sourceAnchor.y + destAnchor.y) / 2;
+
+        setActiveToolbarConnector(connector);
+        setActiveToolbarPosition({ x: midX, y: midY });
+    }
+
+    function closeToolbar() {
+        setActiveToolbarConnector(null);
+        setActiveToolbarPosition(null);
+    }
+
+    // HU-06 — apply-on-change handler for the toolbar style selector.
+    async function handleToolbarStyleChange(connectorId, newStyle) {
+        // Optimistic local update so the re-render is instant; on error,
+        // revert + toast.
+        const previous = connectors.find((c) => c.id === connectorId);
+        if (!previous) return;
+        setConnectors((prev) => prev.map((c) => (c.id === connectorId ? { ...c, style: newStyle } : c)));
+        try {
+            const updated = await connectorsApi.updateConnector(connectorId, { style: newStyle });
+            // Sync server-returned state (e.g., updated_at).
+            setConnectors((prev) => prev.map((c) => (c.id === connectorId ? updated : c)));
+            // Keep the toolbar open with the fresh connector object.
+            setActiveToolbarConnector(updated);
+        } catch (err) {
+            // Revert.
+            setConnectors((prev) => prev.map((c) => (c.id === connectorId ? previous : c)));
+            const message = err.response?.data?.message || 'No se pudo actualizar el estilo.';
+            toastError(message);
+        }
+    }
+
+    // HU-06 — delete handler triggered by the toolbar "Eliminar conector" button.
+    async function handleToolbarDelete(connector) {
+        const ok = window.confirm('¿Eliminar este conector?');
+        if (!ok) return;
+        // Optimistic remove from local state.
+        const previous = connectors;
+        setConnectors((prev) => prev.filter((c) => c.id !== connector.id));
+        closeToolbar();
+        try {
+            await connectorsApi.deleteConnector(connector.id);
+            success('Conector eliminado');
+        } catch (err) {
+            // Revert.
+            setConnectors(previous);
+            const message = err.response?.data?.message || 'No se pudo eliminar el conector.';
+            toastError(message);
+        }
+    }
+
     // HU-06: ESC handler — exit connector mode (US AC53).
     useEffect(() => {
         if (connectorMode === null) return undefined;
@@ -307,6 +381,18 @@ export default function TableroPage() {
 
     return (
         <div className="relative w-full h-full min-h-screen overflow-hidden bg-gray-50">
+            {/* HU-06 — mini-toolbar for editing/deleting a connector.
+                Only renders when a connector was clicked. */}
+            {activeToolbarConnector && activeToolbarPosition && (
+                <ConnectorMiniToolbar
+                    connector={activeToolbarConnector}
+                    position={activeToolbarPosition}
+                    onStyleChange={handleToolbarStyleChange}
+                    onDelete={handleToolbarDelete}
+                    onClose={closeToolbar}
+                />
+            )}
+
             {/* HU-06 — connector mode banner (top, only when mode is active). */}
             <ConnectorModeBanner visible={connectorMode !== null} />
 
@@ -360,10 +446,7 @@ export default function TableroPage() {
                     <ConnectorLayer
                         notes={filteredNotes}
                         connectors={connectors}
-                        onConnectorClick={() => {
-                            // TODO WU-F5: open ConnectorMiniToolbar at click midpoint.
-                            // For now we just no-op so clicks don't crash.
-                        }}
+                        onConnectorClick={handleConnectorClick}
                     />
 
                     {/* Note Cards */}
