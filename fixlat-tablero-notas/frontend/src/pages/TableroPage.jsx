@@ -9,6 +9,9 @@ const NEW_NOTE_DEFAULTS = {
     title: '',
     text: '',
     status: 'Pendiente',
+    shape: 'rectangle',
+    font_family: 'Inter',
+    text_align: 'left',
     position_x: 100,
     position_y: 100,
 };
@@ -88,6 +91,9 @@ export default function TableroPage() {
                     title: note.title,
                     text: note.text,
                     status: note.status,
+                    shape: note.shape,
+                    font_family: note.font_family,
+                    text_align: note.text_align,
                     position_x: newNotePositionRef.current.x,
                     position_y: newNotePositionRef.current.y,
                 });
@@ -98,7 +104,10 @@ export default function TableroPage() {
                     title: note.title,
                     text: note.text,
                     status: note.status,
-                    updated_at: note.updated_at,
+                    shape: note.shape,
+                    font_family: note.font_family,
+                    text_align: note.text_align,
+                    version: note.version,
                 });
                 if (result.ok) {
                     setNotes((prev) => prev.map((n) => (n.id === note.id ? result.note : n)));

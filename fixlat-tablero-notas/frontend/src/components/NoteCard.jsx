@@ -15,10 +15,57 @@ function getStatusColor(status) {
     return SOLID_COLOR_BY_STATUS[status] ?? DEFAULT_COLOR;
 }
 
+// HU-05 §6.1 — 16 shapes exposed by the backend. Anything outside this
+// set (or undefined coming from a stale payload, E16) falls back to
+// `rectangle`, matching the DB default.
+const ALLOWED_SHAPES = new Set([
+    'rectangle',
+    'rounded_rectangle',
+    'diamond',
+    'triangle',
+    'circle',
+    'ellipse',
+    'star',
+    'hexagon',
+    'pentagon',
+    'octagon',
+    'arrow',
+    'parallelogram',
+    'trapezoid',
+    'message_bubble',
+    'cloud',
+    'cylinder',
+]);
+
+const ALLOWED_TEXT_ALIGNS = new Set(['left', 'center', 'right', 'justify']);
+
+function resolveShape(value) {
+    return ALLOWED_SHAPES.has(value) ? value : 'rectangle';
+}
+
+function resolveTextAlign(value) {
+    return ALLOWED_TEXT_ALIGNS.has(value) ? value : 'left';
+}
+
+// HU-05 §6.2 — map the backend literal to the CSS custom property
+// declared in `src/index.css`. Anything not in the catalog (defence
+// in depth, E16) falls back to `system-ui` so the note stays legible.
+function resolveFontFamily(value) {
+    if (typeof value !== 'string' || value.length === 0) {
+        return 'system-ui, sans-serif';
+    }
+    const variableName = `--font-${value.replace(/\s+/g, '-')}`;
+    return `var(${variableName}, system-ui, sans-serif)`;
+}
+
 export default function NoteCard({ note, onEdit, onDelete }) {
     const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
         id: `note-${note.id}`,
     });
+
+    const shapeClass = `note-shape-${resolveShape(note.shape)}`;
+    const inlineFontFamily = resolveFontFamily(note.font_family);
+    const inlineTextAlign = resolveTextAlign(note.text_align);
 
     const style = {
         position: 'absolute',
@@ -26,6 +73,8 @@ export default function NoteCard({ note, onEdit, onDelete }) {
         top: `${note.position_y}px`,
         width: '240px',
         minHeight: '160px',
+        fontFamily: inlineFontFamily,
+        textAlign: inlineTextAlign,
         transform: CSS.Translate.toString(transform),
         touchAction: 'none',
         zIndex: isDragging ? 50 : 10,
@@ -37,9 +86,10 @@ export default function NoteCard({ note, onEdit, onDelete }) {
         <div
             ref={setNodeRef}
             style={style}
+            data-shape={resolveShape(note.shape)}
             {...attributes}
             {...listeners}
-            className={`absolute rounded-md p-4 shadow-md border ${colorConfig.bg} ${colorConfig.border} flex flex-col justify-between select-none cursor-grab active:cursor-grabbing transition-shadow ${
+            className={`absolute rounded-md p-4 shadow-md border ${colorConfig.bg} ${colorConfig.border} ${shapeClass} flex flex-col justify-between select-none cursor-grab active:cursor-grabbing transition-shadow ${
                 isDragging ? 'opacity-90 shadow-2xl scale-105 z-50' : ''
             }`}
         >

@@ -1,4 +1,10 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Merriweather:wght@400;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Caveat:wght@400;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Lobster&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap');
 @import "tailwindcss";
 
 /* ── Base Styles (Clean UI / Solid Flat Design) ──────────────── */
@@ -25,4 +31,179 @@ body {
 
 .animate-fade-in {
     animation: fadeIn 0.15s ease-out forwards;
+}
+
+/* ── HU-05 Note enrichment: font CSS variables ─────────────────
+ * Each variable maps a `font_family` value coming from the backend
+ * (catalog §6.2) to a CSS font stack with `system-ui` fallback so
+ * the note stays legible even if Google Fonts cannot be reached
+ * (E11/E17). The NoteCard resolves `var(--font-<slugified-name>)`
+ * inline via the `font-family` style attribute.
+ */
+:root {
+    --font-Inter: 'Inter';
+    --font-Merriweather: 'Merriweather';
+    --font-JetBrains-Mono: 'JetBrains Mono';
+    --font-Caveat: 'Caveat';
+    --font-Lobster: 'Lobster';
+    --font-Playfair-Display: 'Playfair Display';
+    --font-Poppins: 'Poppins';
+}
+
+/* ── HU-05 Note enrichment: 16 shape variants via clip-path ─────
+ * Applied as `.note-shape-<value>` where `<value>` matches the
+ * `shape` string returned by the backend (catalog §6.1). All
+ * variants inherit the existing 240×160 px bounding box, padding,
+ * box-shadow and status-driven background colors from the NoteCard
+ * JSX; the rules below only adjust geometry.
+ *
+ * `rectangle` keeps the base style (Tailwind `rounded-md` = 6 px)
+ * — no clip-path needed. `rounded_rectangle` widens the radius.
+ * Everything else clips the visible area with `clip-path: polygon()`.
+ */
+.note-shape-rectangle {
+    /* Default geometry — no clip-path, base rounded-md from JSX. */
+    border-radius: 6px;
+}
+
+.note-shape-rounded_rectangle {
+    border-radius: 24px;
+}
+
+.note-shape-diamond {
+    clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%);
+}
+
+.note-shape-triangle {
+    clip-path: polygon(50% 0%, 0% 100%, 100% 100%);
+}
+
+.note-shape-circle {
+    border-radius: 50%;
+    clip-path: circle(50% at 50% 50%);
+}
+
+.note-shape-ellipse {
+    border-radius: 50% / 40%;
+    clip-path: ellipse(50% 50% at 50% 50%);
+}
+
+.note-shape-star {
+    /* 5-point star, 10-vertex polygon (catalog §6.1). */
+    clip-path: polygon(
+        50% 0%,
+        61% 35%,
+        98% 35%,
+        68% 57%,
+        79% 91%,
+        50% 70%,
+        21% 91%,
+        32% 57%,
+        2% 35%,
+        39% 35%
+    );
+}
+
+.note-shape-hexagon {
+    clip-path: polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%);
+}
+
+.note-shape-pentagon {
+    clip-path: polygon(50% 0%, 100% 38%, 82% 100%, 18% 100%, 0% 38%);
+}
+
+.note-shape-octagon {
+    clip-path: polygon(
+        30% 0%, 70% 0%,
+        100% 30%, 100% 70%,
+        70% 100%, 30% 100%,
+        0% 70%, 0% 30%
+    );
+}
+
+.note-shape-arrow {
+    /* Right-pointing arrow, 7 vertices (catalog §6.1). */
+    clip-path: polygon(
+        0% 25%,
+        60% 25%,
+        60% 0%,
+        100% 50%,
+        60% 100%,
+        60% 75%,
+        0% 75%
+    );
+}
+
+.note-shape-parallelogram {
+    clip-path: polygon(20% 0%, 100% 0%, 80% 100%, 0% 100%);
+}
+
+.note-shape-trapezoid {
+    clip-path: polygon(20% 0%, 80% 0%, 100% 100%, 0% 100%);
+}
+
+.note-shape-message_bubble {
+    /* Rectangle with tail on bottom-left, 7 vertices. */
+    clip-path: polygon(
+        0% 0%,
+        100% 0%,
+        100% 70%,
+        70% 70%,
+        60% 100%,
+        50% 70%,
+        0% 70%
+    );
+}
+
+.note-shape-cloud {
+    /* Approximate 4-lobe cloud silhouette via 14-vertex polygon. */
+    clip-path: polygon(
+        20% 60%,
+        0% 50%,
+        5% 30%,
+        20% 25%,
+        25% 10%,
+        45% 5%,
+        60% 15%,
+        70% 5%,
+        85% 10%,
+        95% 25%,
+        100% 45%,
+        90% 60%,
+        80% 70%,
+        30% 70%
+    );
+}
+
+.note-shape-cylinder {
+    /* Cylinder front view: rounded top/bottom via polygon, 6 vertices. */
+    clip-path: polygon(
+        50% 0%,
+        100% 15%,
+        100% 85%,
+        50% 100%,
+        0% 85%,
+        0% 15%
+    );
+}
+
+/* Any clip-path shape: zero out border-radius so the polygon is not
+ * double-rounded (clip-path already defines the silhouette). */
+[class*="note-shape-"] {
+    overflow: hidden;
+}
+
+.note-shape-diamond,
+.note-shape-triangle,
+.note-shape-star,
+.note-shape-hexagon,
+.note-shape-pentagon,
+.note-shape-octagon,
+.note-shape-arrow,
+.note-shape-parallelogram,
+.note-shape-trapezoid,
+.note-shape-message_bubble,
+.note-shape-cloud,
+.note-shape-cylinder {
+    border-radius: 0;
 }
