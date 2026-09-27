@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Facades\DB;
 
 /**
  * Note model for HU-02 (tablero-notas).
@@ -18,6 +19,10 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * Constants below mirror the DB CHECK constraints defined in the additive migration
  * `2026_09_27_154611_add_shape_font_align_to_notes.php` and the `in:` rules in
  * `StoreNoteRequest` / `UpdateNoteRequest`.
+ *
+ * HU-06 extends `booted()` with a `deleting` listener that cascades soft-delete
+ * to `note_connectors` where this note is source or destination. See
+ * `documents/HU-06-conectores.md` §6.5 and `NoteConnectorService::cascadingDeleteForNote()`.
  */
 class Note extends Model
 {
@@ -88,6 +93,33 @@ class Note extends Model
             if ($note->exists && $note->isDirty()) {
                 $note->version = (int) $note->version + 1;
             }
+        });
+
+        // HU-06 §6.5: cascade soft-delete for connectors. When a Note is soft-
+        // deleted, every connector where this note is source OR destination
+        // is also soft-deleted, inside the same DB::transaction() so the
+        // cascade is atomic — if it fails halfway, the note is restored.
+        //
+        // The listener only fires on SOFT delete (Laravel's SoftDeletes trait
+        // passes `isForceDeleting() === false` for `delete()`, true for
+        // `forceDelete()`). The DB FKs declared with ON DELETE CASCADE are
+        // defence in depth for the hard-delete path, which this app never
+        // uses (project rule: soft delete only).
+        //
+        // DB::transaction() is **explicit and required** — Laravel does NOT
+        // guarantee a transaction inside model events, so we own it here.
+        static::deleting(function (Note $note) {
+            if ($note->isForceDeleting()) {
+                return;
+            }
+            DB::transaction(function () use ($note) {
+                \App\Models\NoteConnector::where('source_note_id', $note->id)
+                    ->orWhere('destination_note_id', $note->id)
+                    ->get()
+                    ->each(function (\App\Models\NoteConnector $connector) {
+                        $connector->delete();
+                    });
+            });
         });
     }
 

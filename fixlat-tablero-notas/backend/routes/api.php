@@ -3,6 +3,7 @@
 use App\Http\Controllers\AdminUserController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\MetricsController;
+use App\Http\Controllers\NoteConnectorController;
 use App\Http\Controllers\NoteController;
 use Illuminate\Support\Facades\Route;
 
@@ -33,6 +34,24 @@ Route::middleware(['auth:sanctum', 'auth.active'])->prefix('notes')->group(funct
     Route::put('/{id}', [NoteController::class, 'update'])->whereNumber('id')->name('notes.update');
     Route::patch('/{id}/position', [NoteController::class, 'updatePosition'])->whereNumber('id')->name('notes.updatePosition');
     Route::delete('/{id}', [NoteController::class, 'destroy'])->whereNumber('id')->name('notes.destroy');
+});
+
+// Note connectors (HU-06) — protected by Sanctum + active user
+Route::middleware(['auth:sanctum', 'auth.active'])->group(function () {
+    // Top-level: list all connectors
+    Route::get('/notes/connectors', [NoteConnectorController::class, 'index'])->name('note-connectors.index');
+
+    // Nested under source note: list + create for that note
+    Route::get('/notes/{note}/connectors', [NoteConnectorController::class, 'indexForNote'])
+        ->whereNumber('note')->name('notes.connectors.index');
+    Route::post('/notes/{note}/connectors', [NoteConnectorController::class, 'store'])
+        ->whereNumber('note')->name('notes.connectors.store');
+
+    // Flat REST for individual connectors
+    Route::put('/note-connectors/{id}', [NoteConnectorController::class, 'update'])
+        ->whereNumber('id')->name('note-connectors.update');
+    Route::delete('/note-connectors/{id}', [NoteConnectorController::class, 'destroy'])
+        ->whereNumber('id')->name('note-connectors.destroy');
 });
 
 // Dashboard metrics (HU-03) — protected by Sanctum + active user
