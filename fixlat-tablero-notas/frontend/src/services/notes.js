@@ -11,7 +11,9 @@ export async function createNote(payload) {
 }
 
 export async function updateNote(id, payload) {
-    // Per HU-02: optimistic locking via updated_at; mismatch returns 409.
+    // HU-05 WU-3c: optimistic locking is now on the monotonic `version` integer
+    // (replaced the previous `updated_at` timestamp check). Mismatch returns 409
+    // with `err.response.data.current` carrying the server-side current note.
     try {
         const { data } = await api.put(`/notes/${id}`, payload);
         return { ok: true, note: data.note };
