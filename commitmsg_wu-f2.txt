@@ -1,0 +1,18 @@
+feat(hu-05/frontend): editor toolbar con shape, font y alignment + 6 fuentes de Google Fonts
+
+HU-05 WU-F2. Extiende el NoteEditor modal con tres selectores nuevos
+(forma, fuente, alineación), preview en vivo de la mini-tarjeta con la
+forma/fuente/alineación elegida antes de guardar, y carga de las 6
+fuentes de Google Fonts que faltaban en index.css (Inter ya estaba).
+
+También arregla el cable del optimistic lock HU-05 WU-3c: el editor y el
+handleSave de TableroPage ahora envían `version` (int monotónico) en
+lugar de `updated_at` (timestamp), acorde al cambio del backend WU-3c.
+Sin este fix, cada edición devolvía 409 falso.
+
+AC72-AC79 cubiertos por la implementación:
+- AC72: tres selectores visibles en el modal
+- AC73/74/75: preview refleja los cambios sin Guardar
+- AC76: <div> espejo paralelo para text_align=justify
+- AC77: PUT incluye shape/font_family/text_align con valores locales
+- AC78/79: cancelar sin Guardar no hace HTTP request

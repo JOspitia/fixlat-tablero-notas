@@ -1,0 +1,7 @@
+feat(hu-05/backend): introducir columna version monotónica en notes para optimizar el lock-optimista
+
+- Migración aditiva: version UNSIGNED INTEGER NOT NULL DEFAULT 1 (idempotente)
+- Note model: fillable + cast integer + saving listener que autoincrementa solo en UPDATE con cambios reales (isDirty) para que resave sin cambios no genere versiones fantasma
+- INSERT parte de 1 (default en $attributes)
+- NoteResource expone version como entero en el JSON
+- El lock-optimista actual (updated_at) sigue intacto; el swap a version ocurre en el siguiente work-unit
